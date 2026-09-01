@@ -1,0 +1,319 @@
+import { useEffect, useMemo, useState } from "react"
+import { CarFront, Home, Plus, Search, SlidersHorizontal } from "lucide-react"
+import "./App.css"
+import { VehicleCard } from "./components/VehicleCard"
+import { VehicleDetail } from "./components/VehicleDetail"
+import { VehicleForm } from "./components/VehicleForm"
+import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
+import { isSupabaseConfigured } from "./services/supabase"
+import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
+
+type ActiveView = "inicio" | "unidades"
+type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
+
+const initialFilters: VehicleFilters = {
+  query: "",
+  status: "Todos",
+  brand: "Todas",
+  year: "Todos",
+}
+
+function App() {
+  const [activeView, setActiveView] = useState<ActiveView>("unidades")
+  const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [filters, setFilters] = useState<VehicleFilters>(initialFilters)
+  const [formState, setFormState] = useState<FormState>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadVehicles = async () => {
+      setIsLoading(true)
+      setLoadError(null)
+
+      if (!isSupabaseConfigured()) {
+        setVehicles([])
+        setLoadError("Configura Supabase para cargar y registrar unidades.")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        const items = await listVehicles()
+        setVehicles(items)
+        setSelectedVehicleId((current) => current ?? items[0]?.id ?? null)
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "No se pudieron cargar las unidades.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void loadVehicles()
+  }, [])
+
+  useEffect(() => {
+    if (!feedback) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => setFeedback(null), 2800)
+    return () => window.clearTimeout(timeoutId)
+  }, [feedback])
+
+  const filterOptions = useMemo(() => {
+    const brands = Array.from(new Set(vehicles.map((vehicle) => vehicle.brand))).sort((a, b) => a.localeCompare(b))
+    const years = Array.from(new Set(vehicles.map((vehicle) => String(vehicle.year)))).sort((a, b) => Number(b) - Number(a))
+
+    return { brands, years }
+  }, [vehicles])
+
+  const filteredVehicles = useMemo(() => {
+    const query = filters.query.trim().toLowerCase()
+
+    return vehicles.filter((vehicle) => {
+      const matchesQuery =
+        !query ||
+        [
+          vehicle.internalCode,
+          vehicle.brand,
+          vehicle.model,
+          vehicle.licensePlate ?? "",
+          vehicle.vin,
+        ].some((value) => value.toLowerCase().includes(query))
+      const matchesStatus = filters.status === "Todos" || vehicle.status === filters.status
+      const matchesBrand = filters.brand === "Todas" || vehicle.brand === filters.brand
+      const matchesYear = filters.year === "Todos" || String(vehicle.year) === filters.year
+
+      return matchesQuery && matchesStatus && matchesBrand && matchesYear
+    })
+  }, [filters, vehicles])
+
+  const selectedVehicle = useMemo(() => {
+    return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? filteredVehicles[0] ?? null
+  }, [filteredVehicles, selectedVehicleId, vehicles])
+
+  const handleCreateVehicle = async (payload: VehiclePayload) => {
+    setIsSaving(true)
+    setSaveError(null)
+
+    try {
+      const createdVehicle = await createVehicle(payload)
+      setVehicles((current) => [...current, createdVehicle].sort((a, b) => a.internalCode.localeCompare(b.internalCode)))
+      setSelectedVehicleId(createdVehicle.id)
+      setFormState(null)
+      setFeedback("Unidad registrada correctamente.")
+      setLoadError(null)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "No se pudo guardar la unidad.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleUpdateVehicle = async (vehicleId: string, payload: VehiclePayload) => {
+    setIsSaving(true)
+    setSaveError(null)
+
+    try {
+      const updatedVehicle = await updateVehicle(vehicleId, payload)
+      setVehicles((current) =>
+        current
+          .map((vehicle) => (vehicle.id === vehicleId ? updatedVehicle : vehicle))
+          .sort((a, b) => a.internalCode.localeCompare(b.internalCode)),
+      )
+      setSelectedVehicleId(updatedVehicle.id)
+      setFormState(null)
+      setFeedback("Cambios guardados correctamente.")
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "No se pudieron guardar los cambios.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const openCreateForm = () => {
+    setSaveError(null)
+    setFormState({ mode: "create" })
+  }
+
+  const openEditForm = (vehicle: Vehicle) => {
+    setSaveError(null)
+    setFormState({ mode: "edit", vehicle })
+  }
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-mark">
+          <div>FM</div>
+          <span>FleetMaster II</span>
+        </div>
+        <nav aria-label="Principal">
+          <button
+            className={activeView === "inicio" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => setActiveView("inicio")}
+            type="button"
+          >
+            <Home aria-hidden="true" size={19} />
+            Inicio
+          </button>
+          <button
+            className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => setActiveView("unidades")}
+            type="button"
+          >
+            <CarFront aria-hidden="true" size={19} />
+            Unidades
+          </button>
+        </nav>
+      </aside>
+
+      <main className="content-shell">
+        {activeView === "inicio" ? (
+          <section className="home-panel">
+            <p>Inicio</p>
+            <h1>FleetMaster II</h1>
+            <span>La administracion de tu flotilla comenzara desde el expediente de cada unidad.</span>
+          </section>
+        ) : (
+          <section className="units-page">
+            <header className="page-header">
+              <div>
+                <p>Gestion y expediente de unidades</p>
+                <h1>Unidades</h1>
+                <span>Administra y consulta la informacion de los vehiculos de la flotilla.</span>
+              </div>
+              <button className="button button--primary" onClick={openCreateForm} type="button">
+                <Plus aria-hidden="true" size={18} />
+                Nueva unidad
+              </button>
+            </header>
+
+            {feedback ? <div className="toast">{feedback}</div> : null}
+
+            <div className="units-layout">
+              <section className="units-panel">
+                <div className="search-panel">
+                  <label className="search-box">
+                    <Search aria-hidden="true" size={18} />
+                    <input
+                      onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+                      placeholder="Buscar por codigo, marca, modelo, placas o VIN"
+                      value={filters.query}
+                    />
+                  </label>
+                  <div className="filters-row" aria-label="Filtros de unidades">
+                    <SlidersHorizontal aria-hidden="true" size={18} />
+                    <select
+                      onChange={(event) =>
+                        setFilters((current) => ({ ...current, status: event.target.value as VehicleFilters["status"] }))
+                      }
+                      value={filters.status}
+                    >
+                      <option value="Todos">Todos los estatus</option>
+                      {vehicleStatuses.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      onChange={(event) => setFilters((current) => ({ ...current, brand: event.target.value }))}
+                      value={filters.brand}
+                    >
+                      <option value="Todas">Todas las marcas</option>
+                      {filterOptions.brands.map((brand) => (
+                        <option key={brand} value={brand}>
+                          {brand}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      onChange={(event) => setFilters((current) => ({ ...current, year: event.target.value }))}
+                      value={filters.year}
+                    >
+                      <option value="Todos">Todos los años</option>
+                      {filterOptions.years.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {isLoading ? (
+                  <div className="state-card">Cargando unidades...</div>
+                ) : loadError ? (
+                  <div className="state-card state-card--warning">
+                    <strong>No se pudieron cargar las unidades</strong>
+                    <span>{loadError}</span>
+                  </div>
+                ) : vehicles.length === 0 ? (
+                  <div className="empty-state">
+                    <CarFront aria-hidden="true" size={34} />
+                    <strong>No hay unidades registradas</strong>
+                    <span>Agrega la primera unidad de tu flotilla para comenzar.</span>
+                    <button className="button button--primary" onClick={openCreateForm} type="button">
+                      <Plus aria-hidden="true" size={18} />
+                      Nueva unidad
+                    </button>
+                  </div>
+                ) : filteredVehicles.length === 0 ? (
+                  <div className="state-card">
+                    <strong>Sin resultados</strong>
+                    <span>Ajusta la busqueda o los filtros para encontrar la unidad.</span>
+                  </div>
+                ) : (
+                  <div className="vehicles-list">
+                    {filteredVehicles.map((vehicle) => (
+                      <VehicleCard
+                        isSelected={selectedVehicle?.id === vehicle.id}
+                        key={vehicle.id}
+                        onSelect={() => setSelectedVehicleId(vehicle.id)}
+                        vehicle={vehicle}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="detail-panel">
+                {selectedVehicle ? (
+                  <VehicleDetail onEdit={() => openEditForm(selectedVehicle)} vehicle={selectedVehicle} />
+                ) : (
+                  <div className="detail-placeholder">
+                    <CarFront aria-hidden="true" size={38} />
+                    <strong>Selecciona una unidad</strong>
+                    <span>El expediente se mostrara aqui cuando exista una unidad registrada.</span>
+                  </div>
+                )}
+              </section>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {formState ? (
+        <VehicleForm
+          error={saveError}
+          isSaving={isSaving}
+          mode={formState.mode}
+          onClose={() => setFormState(null)}
+          onSubmit={(payload) =>
+            formState.mode === "create" ? handleCreateVehicle(payload) : handleUpdateVehicle(formState.vehicle.id, payload)
+          }
+          vehicle={formState.mode === "edit" ? formState.vehicle : undefined}
+          vehicles={vehicles}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+export default App
