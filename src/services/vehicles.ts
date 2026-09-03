@@ -12,7 +12,13 @@ interface VehicleRow {
   license_plate: string | null
   engine_number: string | null
   color: string | null
-  fuel_type: FuelType
+  fuel_type: FuelType | null
+  fuel_types: FuelType[] | null
+  state_license_plate: string | null
+  federal_license_plate: string | null
+  vehicle_type: Vehicle["vehicleType"]
+  transmission_type: Vehicle["transmissionType"]
+  load_capacity_kg: number | null
   tank_capacity_liters: number | null
   acquisition_date: string | null
   acquisition_price: number | null
@@ -34,6 +40,12 @@ const toVehicle = (row: VehicleRow): Vehicle => ({
   engineNumber: row.engine_number,
   color: row.color,
   fuelType: row.fuel_type,
+  fuelTypes: row.fuel_types ?? (row.fuel_type ? [row.fuel_type] : []),
+  stateLicensePlate: row.state_license_plate,
+  federalLicensePlate: row.federal_license_plate,
+  vehicleType: row.vehicle_type,
+  transmissionType: row.transmission_type,
+  loadCapacityKg: row.load_capacity_kg,
   tankCapacityLiters: row.tank_capacity_liters,
   acquisitionDate: row.acquisition_date,
   acquisitionPrice: row.acquisition_price,
@@ -50,10 +62,16 @@ const toVehicleRow = (payload: VehiclePayload) => ({
   version: payload.version?.trim() || null,
   year: payload.year,
   vin: payload.vin.trim(),
-  license_plate: payload.licensePlate?.trim() || null,
+  ...(payload.licensePlate !== undefined ? { license_plate: payload.licensePlate?.trim() || null } : {}),
+  state_license_plate: payload.stateLicensePlate?.trim().toUpperCase() || null,
+  federal_license_plate: payload.federalLicensePlate?.trim().toUpperCase() || null,
   engine_number: payload.engineNumber?.trim() || null,
   color: payload.color?.trim() || null,
-  fuel_type: payload.fuelType,
+  ...(payload.fuelType !== undefined ? { fuel_type: payload.fuelType || null } : {}),
+  fuel_types: [...new Set((payload.fuelTypes ?? []).map((value) => value.trim()).filter(Boolean))],
+  vehicle_type: payload.vehicleType || null,
+  transmission_type: payload.transmissionType || null,
+  load_capacity_kg: payload.loadCapacityKg,
   tank_capacity_liters: payload.tankCapacityLiters,
   acquisition_date: payload.acquisitionDate || null,
   acquisition_price: payload.acquisitionPrice,
@@ -69,7 +87,7 @@ const friendlyDatabaseError = (message: string) => {
   }
 
   if (normalized.includes("vehicles_internal_code")) {
-    return "Ya existe una unidad con este código interno."
+    return "Ya existe una unidad con este número económico."
   }
 
   if (normalized.includes("missing-supabase-config")) {

@@ -4,6 +4,7 @@ import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleDetail } from "./components/VehicleDetail"
 import { VehicleForm } from "./components/VehicleForm"
+import { getVehiclesWithPendingRequiredDocuments } from "./services/vehicleDocuments"
 import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
 import { isSupabaseConfigured } from "./services/supabase"
 import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
@@ -22,6 +23,7 @@ function App() {
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
+  const [isVehicleCenterOpen, setIsVehicleCenterOpen] = useState(false)
   const [filters, setFilters] = useState<VehicleFilters>(initialFilters)
   const [formState, setFormState] = useState<FormState>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -29,6 +31,7 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [pendingDocumentVehicleIds, setPendingDocumentVehicleIds] = useState<Set<string> | null>(null)
 
   useEffect(() => {
     const loadVehicles = async () => {
@@ -55,6 +58,40 @@ function App() {
 
     void loadVehicles()
   }, [])
+
+  const vehicleIdsKey = useMemo(() => vehicles.map((vehicle) => vehicle.id).join(","), [vehicles])
+
+  useEffect(() => {
+    let isActive = true
+    const vehicleIds = vehicleIdsKey ? vehicleIdsKey.split(",") : []
+
+    setPendingDocumentVehicleIds(null)
+
+    if (vehicleIds.length === 0) {
+      setPendingDocumentVehicleIds(new Set())
+      return () => {
+        isActive = false
+      }
+    }
+
+    const loadDocumentStatus = async () => {
+      try {
+        const pendingVehicleIds = await getVehiclesWithPendingRequiredDocuments(vehicleIds)
+        if (isActive) {
+          setPendingDocumentVehicleIds(pendingVehicleIds)
+        }
+      } catch {
+        if (isActive) {
+          setPendingDocumentVehicleIds(new Set())
+        }
+      }
+    }
+
+    void loadDocumentStatus()
+    return () => {
+      isActive = false
+    }
+  }, [vehicleIdsKey])
 
   useEffect(() => {
     if (!feedback) {
@@ -83,6 +120,9 @@ function App() {
           vehicle.brand,
           vehicle.model,
           vehicle.licensePlate ?? "",
+          vehicle.stateLicensePlate ?? "",
+          vehicle.federalLicensePlate ?? "",
+          ...vehicle.fuelTypes,
           vehicle.vin,
         ].some((value) => value.toLowerCase().includes(query))
       const matchesStatus = filters.status === "Todos" || vehicle.status === filters.status
@@ -94,8 +134,17 @@ function App() {
   }, [filters, vehicles])
 
   const selectedVehicle = useMemo(() => {
-    return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? filteredVehicles[0] ?? null
-  }, [filteredVehicles, selectedVehicleId, vehicles])
+    return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null
+  }, [vehicles, selectedVehicleId])
+
+  const fleetStats = useMemo(() => {
+    return {
+      total: vehicles.length,
+      active: vehicles.filter((vehicle) => vehicle.status === "Activo").length,
+      maintenance: vehicles.filter((vehicle) => vehicle.status === "En mantenimiento").length,
+      offline: vehicles.filter((vehicle) => vehicle.status === "Fuera de servicio").length,
+    }
+  }, [vehicles])
 
   const handleCreateVehicle = async (payload: VehiclePayload) => {
     setIsSaving(true)
@@ -105,6 +154,7 @@ function App() {
       const createdVehicle = await createVehicle(payload)
       setVehicles((current) => [...current, createdVehicle].sort((a, b) => a.internalCode.localeCompare(b.internalCode)))
       setSelectedVehicleId(createdVehicle.id)
+      setIsVehicleCenterOpen(true)
       setFormState(null)
       setFeedback("Unidad registrada correctamente.")
       setLoadError(null)
@@ -146,6 +196,16 @@ function App() {
     setFormState({ mode: "edit", vehicle })
   }
 
+  const syncVehicleMileage = (vehicleId: string, mileage: number) => {
+    setVehicles((current) =>
+      current.map((vehicle) =>
+        vehicle.id === vehicleId && mileage > vehicle.currentMileage
+          ? { ...vehicle, currentMileage: mileage }
+          : vehicle,
+      ),
+    )
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -164,11 +224,14 @@ function App() {
           </button>
           <button
             className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
-            onClick={() => setActiveView("unidades")}
+            onClick={() => {
+              setActiveView("unidades")
+              setIsVehicleCenterOpen(false)
+            }}
             type="button"
           >
             <CarFront aria-hidden="true" size={19} />
-            Unidades
+            Flota
           </button>
         </nav>
       </aside>
@@ -181,12 +244,22 @@ function App() {
             <span>La administracion de tu flotilla comenzara desde el expediente de cada unidad.</span>
           </section>
         ) : (
-          <section className="units-page">
+          <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
+            {isVehicleCenterOpen && selectedVehicle ? (
+              <VehicleDetail
+                onBackToFleet={() => setIsVehicleCenterOpen(false)}
+                onEdit={() => openEditForm(selectedVehicle)}
+                onFeedback={setFeedback}
+                onVehicleMileageSynced={syncVehicleMileage}
+                vehicle={selectedVehicle}
+              />
+            ) : (
+              <>
             <header className="page-header">
               <div>
-                <p>Gestion y expediente de unidades</p>
-                <h1>Unidades</h1>
-                <span>Administra y consulta la informacion de los vehiculos de la flotilla.</span>
+                <p>Gestion operativa</p>
+                <h1>Flota</h1>
+                <span>Administra y supervisa las unidades de tu flotilla.</span>
               </div>
               <button className="button button--primary" onClick={openCreateForm} type="button">
                 <Plus aria-hidden="true" size={18} />
@@ -196,7 +269,26 @@ function App() {
 
             {feedback ? <div className="toast">{feedback}</div> : null}
 
-            <div className="units-layout">
+            <section className="fleet-summary" aria-label="Resumen de flota">
+              <div className="fleet-metric">
+                <span>Total unidades</span>
+                <strong>{fleetStats.total}</strong>
+              </div>
+              <div className="fleet-metric">
+                <span>Activas</span>
+                <strong>{fleetStats.active}</strong>
+              </div>
+              <div className="fleet-metric">
+                <span>En mantenimiento</span>
+                <strong>{fleetStats.maintenance}</strong>
+              </div>
+              <div className="fleet-metric">
+                <span>Fuera de servicio</span>
+                <strong>{fleetStats.offline}</strong>
+              </div>
+            </section>
+
+            <div className="fleet-layout">
               <section className="units-panel">
                 <div className="search-panel">
                   <label className="search-box">
@@ -273,28 +365,22 @@ function App() {
                   <div className="vehicles-list">
                     {filteredVehicles.map((vehicle) => (
                       <VehicleCard
-                        isSelected={selectedVehicle?.id === vehicle.id}
+                        hasPendingDocuments={pendingDocumentVehicleIds?.has(vehicle.id) ?? false}
+                        isSelected={selectedVehicleId === vehicle.id}
                         key={vehicle.id}
-                        onSelect={() => setSelectedVehicleId(vehicle.id)}
+                        onSelect={() => {
+                          setSelectedVehicleId(vehicle.id)
+                          setIsVehicleCenterOpen(true)
+                        }}
                         vehicle={vehicle}
                       />
                     ))}
                   </div>
                 )}
               </section>
-
-              <section className="detail-panel">
-                {selectedVehicle ? (
-                  <VehicleDetail onEdit={() => openEditForm(selectedVehicle)} vehicle={selectedVehicle} />
-                ) : (
-                  <div className="detail-placeholder">
-                    <CarFront aria-hidden="true" size={38} />
-                    <strong>Selecciona una unidad</strong>
-                    <span>El expediente se mostrara aqui cuando exista una unidad registrada.</span>
-                  </div>
-                )}
-              </section>
             </div>
+              </>
+            )}
           </section>
         )}
       </main>

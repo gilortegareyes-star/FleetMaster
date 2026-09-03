@@ -1,7 +1,12 @@
-export const formatMileage = (value: number) =>
-  new Intl.NumberFormat("es-MX", {
+export const formatMileage = (value: number | null | undefined) => {
+  if (value === null || value === undefined) {
+    return "—"
+  }
+
+  return new Intl.NumberFormat("es-MX", {
     maximumFractionDigits: 0,
   }).format(value)
+}
 
 export const formatCurrency = (value: number | null) => {
   if (value === null) {
@@ -21,8 +26,8 @@ export const formatDate = (value: string | null) => {
   }
 
   return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
+    day: "numeric",
+    month: "short",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${value}T00:00:00Z`))

@@ -1,0 +1,110 @@
+import { getSupabaseClient } from "./supabase"
+import type { MaintenanceReport, MaintenanceReportPayload, ReceptionConditions } from "../types/maintenanceReport"
+
+interface MaintenanceReportRow {
+  maintenance_id: string
+  entry_at: string | null
+  exit_at: string | null
+  entry_mileage: number | null
+  reason: string | null
+  reception_conditions: unknown
+  diagnosis: string | null
+  recommendations: string | null
+  pending_work: string | null
+  closed_by: string | null
+  closure_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+const toOptionalString = (value: unknown) => (typeof value === "string" ? value : null)
+
+const toReceptionConditions = (value: unknown): ReceptionConditions | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null
+  }
+
+  const conditions = value as Record<string, unknown>
+  const fuelLevelPercent = typeof conditions.fuelLevelPercent === "number" ? conditions.fuelLevelPercent : null
+  const warningLights = toOptionalString(conditions.warningLights)
+  const visibleDamage = toOptionalString(conditions.visibleDamage)
+  const observations = toOptionalString(conditions.observations)
+
+  return fuelLevelPercent === null && !warningLights && !visibleDamage && !observations
+    ? null
+    : { fuelLevelPercent, warningLights, visibleDamage, observations }
+}
+
+const toMaintenanceReport = (row: MaintenanceReportRow): MaintenanceReport => ({
+  maintenanceId: row.maintenance_id,
+  entryAt: row.entry_at,
+  exitAt: row.exit_at,
+  entryMileage: row.entry_mileage,
+  reason: row.reason,
+  receptionConditions: toReceptionConditions(row.reception_conditions),
+  diagnosis: row.diagnosis,
+  recommendations: row.recommendations,
+  pendingWork: row.pending_work,
+  closedBy: row.closed_by,
+  closureNotes: row.closure_notes,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+})
+
+const toMaintenanceReportRow = (payload: MaintenanceReportPayload) => ({
+  maintenance_id: payload.maintenanceId,
+  entry_at: payload.entryAt,
+  exit_at: payload.exitAt,
+  entry_mileage: payload.entryMileage,
+  reason: payload.reason?.trim() || null,
+  reception_conditions: payload.receptionConditions,
+  diagnosis: payload.diagnosis?.trim() || null,
+  recommendations: payload.recommendations?.trim() || null,
+  pending_work: payload.pendingWork?.trim() || null,
+  closed_by: payload.closedBy?.trim() || null,
+  closure_notes: payload.closureNotes?.trim() || null,
+})
+
+const friendlyMaintenanceReportError = (message: string) => {
+  if (message.toLowerCase().includes("missing-supabase-config")) {
+    return "Configura la conexión a Supabase para guardar el informe."
+  }
+
+  return "No se pudo guardar el informe de mantenimiento. Intenta de nuevo."
+}
+
+export const getMaintenanceReport = async (maintenanceId: string) => {
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from("maintenance_reports")
+      .select("*")
+      .eq("maintenance_id", maintenanceId)
+      .maybeSingle()
+
+    if (error) {
+      throw error
+    }
+
+    return data ? toMaintenanceReport(data as MaintenanceReportRow) : null
+  } catch (error) {
+    throw new Error(friendlyMaintenanceReportError(error instanceof Error ? error.message : String(error)))
+  }
+}
+
+export const saveMaintenanceReport = async (payload: MaintenanceReportPayload) => {
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from("maintenance_reports")
+      .upsert(toMaintenanceReportRow(payload), { onConflict: "maintenance_id" })
+      .select("*")
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return toMaintenanceReport(data as MaintenanceReportRow)
+  } catch (error) {
+    throw new Error(friendlyMaintenanceReportError(error instanceof Error ? error.message : String(error)))
+  }
+}

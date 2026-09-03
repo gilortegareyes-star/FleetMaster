@@ -2,6 +2,7 @@ import type { VehicleStatus } from "../types/vehicle"
 
 const statusClassName: Record<VehicleStatus, string> = {
   Activo: "status-badge status-badge--active",
+  Inactivo: "status-badge status-badge--inactive",
   "En mantenimiento": "status-badge status-badge--maintenance",
   "Fuera de servicio": "status-badge status-badge--offline",
   Vendido: "status-badge status-badge--sold",
