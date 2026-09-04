@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { CarFront, Home, Plus, Search, SlidersHorizontal } from "lucide-react"
+import { CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleDetail } from "./components/VehicleDetail"
@@ -8,8 +8,9 @@ import { getVehiclesWithPendingRequiredDocuments } from "./services/vehicleDocum
 import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
 import { isSupabaseConfigured } from "./services/supabase"
 import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
+import { useAuth } from "./contexts/AuthContext"
 
-type ActiveView = "inicio" | "unidades"
+type ActiveView = "inicio" | "unidades" | "administracion"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
 const initialFilters: VehicleFilters = {
@@ -20,6 +21,7 @@ const initialFilters: VehicleFilters = {
 }
 
 function App() {
+  const { signOut, user } = useAuth()
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
@@ -233,11 +235,35 @@ function App() {
             <CarFront aria-hidden="true" size={19} />
             Flota
           </button>
+          <button
+            className={activeView === "administracion" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => setActiveView("administracion")}
+            type="button"
+          >
+            <Settings2 aria-hidden="true" size={19} />
+            Administración
+          </button>
         </nav>
+        <div className="sidebar__footer">
+          <div className="sidebar__account">
+            <UserRound aria-hidden="true" size={17} />
+            <span>{user?.user_metadata?.display_name || user?.email || "Cuenta"}</span>
+          </div>
+          <button className="nav-item sidebar__logout" onClick={() => void signOut()} type="button">
+            <LogOut aria-hidden="true" size={18} />
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       <main className="content-shell">
-        {activeView === "inicio" ? (
+        {activeView === "administracion" ? (
+          <section className="admin-placeholder">
+            <p>Administración</p>
+            <h1>Gestión de empresas y usuarios de FleetMaster.</h1>
+            <span>Este espacio estará disponible en la siguiente fase.</span>
+          </section>
+        ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>
             <h1>FleetMaster II</h1>

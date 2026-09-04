@@ -9,6 +9,8 @@
 
 .sidebar {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   padding: 26px 18px;
   border-right: 1px solid #e4e9e6;
   background: rgba(255, 255, 255, 0.78);
@@ -40,6 +42,200 @@
 .sidebar nav {
   display: grid;
   gap: 8px;
+}
+
+.sidebar__footer {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 28px;
+}
+
+.sidebar__account {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 0 12px;
+  color: #788681;
+  font-size: 0.78rem;
+}
+
+.sidebar__account span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__logout {
+  color: #697871;
+}
+
+.admin-placeholder {
+  min-height: calc(100vh - 56px);
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.admin-placeholder p,
+.access-denied-panel p {
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.admin-placeholder h1,
+.access-denied-panel h1 {
+  margin: 0;
+  color: #17211d;
+  font-size: 2.25rem;
+  line-height: 1.12;
+}
+
+.admin-placeholder span {
+  margin-top: 12px;
+  color: #63716c;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background:
+    linear-gradient(180deg, rgba(247, 250, 249, 0.96), rgba(244, 247, 245, 0.96)),
+    #f6f8f7;
+}
+
+.auth-shell--loading {
+  gap: 12px;
+  align-content: center;
+  color: #63716c;
+  font-size: 0.92rem;
+}
+
+.auth-loading-mark,
+.brand-mark__badge {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #14231f;
+  color: #f9fbfa;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.login-panel,
+.access-denied-panel {
+  width: min(440px, 100%);
+  border: 1px solid #e3e9e6;
+  border-radius: 8px;
+  padding: 34px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 24px 60px rgba(31, 45, 39, 0.08);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #17211d;
+  font-weight: 800;
+}
+
+.login-heading {
+  margin-top: 42px;
+}
+
+.login-heading p {
+  margin: 0 0 8px;
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.login-heading h1 {
+  margin: 0;
+  color: #17211d;
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.login-heading span {
+  display: block;
+  margin-top: 10px;
+  color: #63716c;
+  line-height: 1.5;
+}
+
+.login-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 30px;
+}
+
+.login-field {
+  display: grid;
+  gap: 8px;
+  color: #34423c;
+  font-size: 0.84rem;
+  font-weight: 720;
+}
+
+.login-field__control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border: 1px solid #dce4e0;
+  border-radius: 8px;
+  padding: 0 13px;
+  background: #ffffff;
+  color: #788681;
+}
+
+.login-field__control:focus-within {
+  border-color: #78b9aa;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.login-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17211d;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.login-error {
+  margin: 0;
+  color: #a33a3a;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.access-denied-panel {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+
+.access-denied-panel h1 {
+  font-size: 1.55rem;
 }
 
 .nav-item,
@@ -3344,7 +3540,8 @@
   }
 
   .brand-mark span,
-  .nav-item {
+  .nav-item,
+  .sidebar__account span {
     font-size: 0;
   }
 
@@ -3354,6 +3551,11 @@
 
   .nav-item svg {
     flex: 0 0 auto;
+  }
+
+  .sidebar__account {
+    justify-content: center;
+    padding: 0;
   }
 
   .fleet-summary {
@@ -3406,9 +3608,25 @@
     display: flex;
   }
 
+  .sidebar__footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 0;
+  }
+
   .nav-item {
     width: 46px;
     padding: 0;
+  }
+
+  .sidebar__account {
+    width: 46px;
+    height: 44px;
+  }
+
+  .sidebar__logout {
+    width: 46px;
   }
 
   .content-shell {
@@ -3432,6 +3650,15 @@
 
   .page-header .button {
     width: 100%;
+  }
+
+  .login-panel,
+  .access-denied-panel {
+    padding: 26px;
+  }
+
+  .admin-placeholder h1 {
+    font-size: 1.9rem;
   }
 
   .detail-grid,
