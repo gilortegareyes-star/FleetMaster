@@ -1,8 +1,8 @@
 import { FileUp, X } from "lucide-react"
-import { useMemo, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import type { InsurancePolicyFormValues, InsurancePolicyPayload } from "../types/vehicleDocument"
 import type { Vehicle } from "../types/vehicle"
-import { formatCurrency } from "../utils/formatters"
+import { VehicleDocumentIdentity } from "./VehicleDocumentIdentity"
 
 type InsurancePolicyFormErrors = Partial<Record<keyof InsurancePolicyFormValues, string>>
 
@@ -19,7 +19,6 @@ const emptyValues: InsurancePolicyFormValues = {
   documentNumber: "",
   validFrom: "",
   validUntil: "",
-  cost: "",
   contactName: "",
   contactPhone: "",
   notes: "",
@@ -28,15 +27,6 @@ const emptyValues: InsurancePolicyFormValues = {
 
 const allowedMimeTypes = ["application/pdf", "image/jpeg", "image/png"]
 const maxFileSize = 10 * 1024 * 1024
-
-const parseNumber = (value: string) => {
-  if (value.trim() === "") {
-    return null
-  }
-
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : Number.NaN
-}
 
 const isDateValue = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
 
@@ -50,11 +40,6 @@ export function InsurancePolicyForm({
   const [values, setValues] = useState<InsurancePolicyFormValues>(emptyValues)
   const [errors, setErrors] = useState<InsurancePolicyFormErrors>({})
 
-  const costPreview = useMemo(() => {
-    const parsed = parseNumber(values.cost)
-    return parsed === null || Number.isNaN(parsed) ? "$0.00" : formatCurrency(parsed)
-  }, [values.cost])
-
   const updateValue = (field: keyof InsurancePolicyFormValues, value: string | File | null) => {
     setValues((current) => ({ ...current, [field]: value }))
     setErrors((current) => ({ ...current, [field]: undefined }))
@@ -62,7 +47,6 @@ export function InsurancePolicyForm({
 
   const validate = () => {
     const nextErrors: InsurancePolicyFormErrors = {}
-    const parsedCost = parseNumber(values.cost)
 
     if (!values.issuer.trim()) {
       nextErrors.issuer = "La aseguradora es obligatoria."
@@ -92,10 +76,6 @@ export function InsurancePolicyForm({
       nextErrors.validFrom = "El inicio no puede ser posterior al fin de vigencia."
     }
 
-    if (Number.isNaN(parsedCost) || (parsedCost !== null && parsedCost < 0)) {
-      nextErrors.cost = "Ingresa un costo válido."
-    }
-
     if (!values.file) {
       nextErrors.file = "Selecciona el archivo de la póliza."
     } else if (!allowedMimeTypes.includes(values.file.type)) {
@@ -115,15 +95,13 @@ export function InsurancePolicyForm({
       return
     }
 
-    const parsedCost = parseNumber(values.cost)
-
     await onSubmit({
       vehicleId: vehicle.id,
       issuer: values.issuer.trim(),
       documentNumber: values.documentNumber.trim(),
       validFrom: values.validFrom || null,
       validUntil: values.validUntil,
-      cost: parsedCost,
+      cost: null,
       contactName: values.contactName.trim() || null,
       contactPhone: values.contactPhone.trim() || null,
       notes: values.notes.trim() || null,
@@ -138,7 +116,7 @@ export function InsurancePolicyForm({
           <div>
             <p>Póliza de seguro</p>
             <h2>Subir póliza</h2>
-            <span>{vehicle.internalCode}</span>
+            <VehicleDocumentIdentity vehicle={vehicle} />
           </div>
           <button aria-label="Cerrar formulario" className="icon-button" onClick={onClose} type="button">
             <X aria-hidden="true" size={20} />
@@ -188,20 +166,6 @@ export function InsurancePolicyForm({
                 value={values.validUntil}
               />
               {errors.validUntil ? <em>{errors.validUntil}</em> : null}
-            </label>
-
-            <label className="field">
-              <span>Costo de la póliza</span>
-              <input
-                inputMode="decimal"
-                min="0"
-                onChange={(event) => updateValue("cost", event.target.value)}
-                step="0.01"
-                type="number"
-                value={values.cost}
-              />
-              <small>{costPreview}</small>
-              {errors.cost ? <em>{errors.cost}</em> : null}
             </label>
 
             <label className="field">

@@ -9,13 +9,16 @@ import {
   type VehicleDocumentPayload,
   type VehicleDocumentType,
   type VehicleInspectionPayload,
+  type CirculationType,
 } from "../types/vehicleDocument"
+import type { Vehicle } from "../types/vehicle"
 import { getDocumentStatus } from "../utils/documentStatus"
 
 interface VehicleDocumentRow {
   id: string
   vehicle_id: string
   document_type: VehicleDocumentType
+  circulation_type: CirculationType | null
   document_number: string | null
   issuer: string | null
   valid_from: string | null
@@ -42,6 +45,7 @@ const toVehicleDocument = (row: VehicleDocumentRow): VehicleDocument => ({
   id: row.id,
   vehicleId: row.vehicle_id,
   documentType: row.document_type,
+  circulationType: row.circulation_type,
   documentNumber: row.document_number,
   issuer: row.issuer,
   validFrom: row.valid_from,
@@ -126,35 +130,31 @@ export const validateVehicleDocumentFile = (file: File) => {
   }
 }
 
-export const getCurrentVehicleDocument = async (
-  vehicleId: string,
-  documentType: VehicleDocumentType,
-) => {
+export const getCurrentVehicleDocuments = async (vehicleId: string) => {
   try {
     const { data, error } = await getSupabaseClient()
       .from("vehicle_documents")
       .select("*")
       .eq("vehicle_id", vehicleId)
-      .eq("document_type", documentType)
       .eq("is_current", true)
-      .maybeSingle()
 
     if (error) {
       throw error
     }
 
-    return data ? toVehicleDocument(data as VehicleDocumentRow) : null
+    return (data ?? []).map((row) => toVehicleDocument(row as VehicleDocumentRow))
   } catch (error) {
     throw new Error(friendlyDocumentError(error instanceof Error ? error.message : String(error)))
   }
 }
 
-export const getVehiclesWithPendingRequiredDocuments = async (vehicleIds: string[]) => {
-  if (vehicleIds.length === 0) {
+export const getVehiclesWithPendingRequiredDocuments = async (vehicles: Vehicle[]) => {
+  if (vehicles.length === 0) {
     return new Set<string>()
   }
 
   try {
+    const vehicleIds = vehicles.map((vehicle) => vehicle.id)
     const { data, error } = await getSupabaseClient()
       .from("vehicle_documents")
       .select("*")
@@ -166,27 +166,47 @@ export const getVehiclesWithPendingRequiredDocuments = async (vehicleIds: string
       throw error
     }
 
-    const completeDocumentsByVehicle = new Map<string, Set<"insurance_policy" | "registration_card">>()
+    const completeDocumentsByVehicle = new Map<string, Set<string>>()
 
     for (const row of (data ?? []) as VehicleDocumentRow[]) {
-      if (row.document_type !== "insurance_policy" && row.document_type !== "registration_card") {
+      const document = toVehicleDocument(row)
+      if (document.documentType !== "insurance_policy" && document.documentType !== "registration_card") {
         continue
       }
 
-      const status = getDocumentStatus(toVehicleDocument(row))
+      const status = getDocumentStatus(document)
       const isComplete =
-        row.document_type === "insurance_policy"
+        document.documentType === "insurance_policy"
           ? ["Vigente", "Próximo a vencer"].includes(status.label)
           : status.label !== "Vencido"
 
       if (isComplete) {
         const completeDocuments = completeDocumentsByVehicle.get(row.vehicle_id) ?? new Set()
-        completeDocuments.add(row.document_type)
+        completeDocuments.add(
+          document.documentType === "insurance_policy"
+            ? "insurance_policy"
+            : document.circulationType ?? "legacy",
+        )
         completeDocumentsByVehicle.set(row.vehicle_id, completeDocuments)
       }
     }
 
-    return new Set(vehicleIds.filter((vehicleId) => completeDocumentsByVehicle.get(vehicleId)?.size !== 2))
+    return new Set(
+      vehicles
+        .filter((vehicle) => {
+          const insuranceComplete = completeDocumentsByVehicle.get(vehicle.id)?.has("insurance_policy") ?? false
+          const requiredCirculationTypes = [
+            vehicle.stateLicensePlate?.trim() ? "state" : null,
+            vehicle.federalLicensePlate?.trim() ? "federal" : null,
+          ].filter((type): type is "state" | "federal" => type !== null)
+          const registrationComplete =
+            requiredCirculationTypes.length > 0 &&
+            requiredCirculationTypes.every((type) => completeDocumentsByVehicle.get(vehicle.id)?.has(type) ?? false)
+
+          return !insuranceComplete || !registrationComplete
+        })
+        .map((vehicle) => vehicle.id),
+    )
   } catch (error) {
     throw new Error(friendlyDocumentError(error instanceof Error ? error.message : String(error)))
   }
@@ -228,6 +248,7 @@ export const createVehicleDocument = async (payload: VehicleDocumentPayload) => 
         p_mime_type: payload.file.type,
         p_file_size: payload.file.size,
         p_details: payload.details ?? {},
+        p_circulation_type: payload.circulationType ?? null,
       })
       .single()
 
@@ -253,6 +274,7 @@ export const createRegistrationCard = async (payload: RegistrationCardPayload) =
   return createVehicleDocument({
     vehicleId: payload.vehicleId,
     documentType: "registration_card",
+    circulationType: payload.circulationType,
     documentNumber: payload.documentNumber,
     issuer: payload.issuingState ?? "",
     validFrom: payload.validFrom,

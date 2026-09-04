@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  AlertTriangle,
   BadgeCheck,
   CalendarDays,
   ClipboardCheck,
@@ -21,6 +22,7 @@ import {
 } from "../services/vehicleDocuments"
 import type { Vehicle } from "../types/vehicle"
 import type {
+  CirculationType,
   InsurancePolicyPayload,
   RegistrationCardPayload,
   VehicleDocument,
@@ -30,18 +32,23 @@ import type {
 } from "../types/vehicleDocument"
 import { getDocumentStatus } from "../utils/documentStatus"
 import { displayValue, formatCurrency, formatDate } from "../utils/formatters"
+import { VehicleDocumentIdentity } from "./VehicleDocumentIdentity"
 
 type DocumentPanelKind = Extract<VehicleDocumentType, "insurance_policy" | "registration_card" | "vehicle_inspection">
 
 interface VehicleDocumentPanelProps {
   vehicle: Vehicle
   documentType: DocumentPanelKind
+  circulationType?: CirculationType | null
+  registrationFormRequest?: number
   document: VehicleDocument | null
   isLoading: boolean
   error: string | null
   onBackToSummary: () => void
   onDocumentChanged: (document: VehicleDocument) => void
   onFeedback: (message: string) => void
+  onRegister?: () => void
+  onRegistrationFlowReset?: () => void
 }
 
 interface FieldValues {
@@ -138,6 +145,9 @@ const parseNumber = (value: string) => {
 
 const isDateValue = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value)
 
+const getVehiclePlate = (vehicle: Vehicle) =>
+  vehicle.stateLicensePlate?.trim() || vehicle.federalLicensePlate?.trim() || vehicle.licensePlate?.trim() || ""
+
 const resultLabels: Record<VehicleInspectionResult, string> = {
   approved: "Aprobada",
   rejected: "Rechazada",
@@ -204,6 +214,7 @@ const getDocumentMetrics = (documentType: DocumentPanelKind, document: VehicleDo
 function VehicleDocumentForm({
   vehicle,
   documentType,
+  circulationType,
   isSaving,
   error,
   onClose,
@@ -211,15 +222,22 @@ function VehicleDocumentForm({
 }: {
   vehicle: Vehicle
   documentType: DocumentPanelKind
+  circulationType: CirculationType | null
   isSaving: boolean
   error: string | null
   onClose: () => void
   onSubmit: (values: FieldValues) => Promise<void>
 }) {
   const config = documentConfigs[documentType]
+  const registrationTitle = circulationType === "federal" ? "Registrar tarjeta Federal" : "Registrar tarjeta Estatal"
+  const vehiclePlate = circulationType === "federal"
+    ? vehicle.federalLicensePlate?.trim() || ""
+    : circulationType === "state"
+      ? vehicle.stateLicensePlate?.trim() || ""
+      : getVehiclePlate(vehicle)
   const [values, setValues] = useState<FieldValues>({
     ...emptyValues,
-    plateNumber: vehicle.licensePlate ?? "",
+    plateNumber: documentType === "registration_card" ? vehiclePlate : "",
   })
   const [errors, setErrors] = useState<FieldErrors>({})
 
@@ -277,7 +295,7 @@ function VehicleDocumentForm({
       nextErrors.validFrom = "La fecha inicial no puede ser posterior a la vigencia."
     }
 
-    if (Number.isNaN(parsedCost) || (parsedCost !== null && parsedCost < 0)) {
+    if (documentType !== "insurance_policy" && (Number.isNaN(parsedCost) || (parsedCost !== null && parsedCost < 0))) {
       nextErrors.cost = "Ingresa un costo válido."
     }
 
@@ -309,8 +327,8 @@ function VehicleDocumentForm({
         <header className="vehicle-form__header">
           <div>
             <p>{config.title}</p>
-            <h2>{config.uploadLabel}</h2>
-            <span>{vehicle.internalCode}</span>
+            <h2>{documentType === "registration_card" ? registrationTitle : config.uploadLabel}</h2>
+            <VehicleDocumentIdentity vehicle={vehicle} />
           </div>
           <button aria-label="Cerrar formulario" className="icon-button" onClick={onClose} type="button">
             <X aria-hidden="true" size={20} />
@@ -362,20 +380,6 @@ function VehicleDocumentForm({
                 </label>
 
                 <label className="field">
-                  <span>Costo de la póliza</span>
-                  <input
-                    inputMode="decimal"
-                    min="0"
-                    onChange={(event) => updateValue("cost", event.target.value)}
-                    step="0.01"
-                    type="number"
-                    value={values.cost}
-                  />
-                  <small>{costPreview}</small>
-                  {errors.cost ? <em>{errors.cost}</em> : null}
-                </label>
-
-                <label className="field">
                   <span>Agente / contacto</span>
                   <input
                     onChange={(event) => updateValue("contactName", event.target.value)}
@@ -396,26 +400,20 @@ function VehicleDocumentForm({
             {documentType === "registration_card" ? (
               <>
                 <label className="field">
+                  <span>Placas</span>
+                  <input
+                    aria-readonly="true"
+                    className="field__reference-input"
+                    readOnly
+                    value={vehiclePlate || "Sin placa registrada"}
+                  />
+                </label>
+
+                <label className="field">
                   <span>Folio del documento</span>
                   <input
                     onChange={(event) => updateValue("documentNumber", event.target.value)}
                     value={values.documentNumber}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Placas</span>
-                  <input
-                    onChange={(event) => updateValue("plateNumber", event.target.value)}
-                    value={values.plateNumber}
-                  />
-                </label>
-
-                <label className="field">
-                  <span>Entidad / estado de expedición</span>
-                  <input
-                    onChange={(event) => updateValue("issuingState", event.target.value)}
-                    value={values.issuingState}
                   />
                 </label>
 
@@ -439,6 +437,14 @@ function VehicleDocumentForm({
                     value={values.validUntil}
                   />
                   {errors.validUntil ? <em>{errors.validUntil}</em> : null}
+                </label>
+
+                <label className="field">
+                  <span>Entidad / estado de expedición</span>
+                  <input
+                    onChange={(event) => updateValue("issuingState", event.target.value)}
+                    value={values.issuingState}
+                  />
                 </label>
               </>
             ) : null}
@@ -557,14 +563,25 @@ function VehicleDocumentForm({
 export function VehicleDocumentPanel({
   vehicle,
   documentType,
+  circulationType,
+  registrationFormRequest,
   document,
   isLoading,
   error,
   onBackToSummary,
   onDocumentChanged,
   onFeedback,
+  onRegister,
+  onRegistrationFlowReset,
 }: VehicleDocumentPanelProps) {
   const config = documentConfigs[documentType]
+  const registerDocument = onRegister ?? (() => setIsFormOpen(true))
+  const circulationLabel = circulationType === "federal" ? "FEDERAL" : circulationType === "state" ? "ESTATAL" : null
+  const vehiclePlate = circulationType === "federal"
+    ? vehicle.federalLicensePlate?.trim() || ""
+    : circulationType === "state"
+      ? vehicle.stateLicensePlate?.trim() || ""
+      : getVehiclePlate(vehicle)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -603,6 +620,12 @@ export function VehicleDocumentPanel({
     }
   }, [document])
 
+  useEffect(() => {
+    if (registrationFormRequest) {
+      setIsFormOpen(true)
+    }
+  }, [registrationFormRequest])
+
   const handleSubmit = async (values: FieldValues) => {
     if (!values.file) {
       return
@@ -614,6 +637,7 @@ export function VehicleDocumentPanel({
     try {
       let createdDocument: VehicleDocument
       const parsedCost = parseNumber(values.cost)
+      const vehiclePlate = getVehiclePlate(vehicle)
 
       if (documentType === "insurance_policy") {
         const payload: InsurancePolicyPayload = {
@@ -622,7 +646,7 @@ export function VehicleDocumentPanel({
           documentNumber: values.documentNumber.trim(),
           validFrom: values.validFrom || null,
           validUntil: values.validUntil,
-          cost: parsedCost,
+          cost: null,
           contactName: values.contactName.trim() || null,
           contactPhone: values.contactPhone.trim() || null,
           notes: values.notes.trim() || null,
@@ -632,8 +656,9 @@ export function VehicleDocumentPanel({
       } else if (documentType === "registration_card") {
         const payload: RegistrationCardPayload = {
           vehicleId: vehicle.id,
+          circulationType: circulationType ?? "state",
           documentNumber: values.documentNumber.trim(),
-          plateNumber: values.plateNumber.trim() || null,
+          plateNumber: document?.details.plateNumber?.trim() || vehiclePlate || null,
           issuingState: values.issuingState.trim() || null,
           validFrom: values.validFrom || null,
           validUntil: values.validUntil || null,
@@ -658,6 +683,7 @@ export function VehicleDocumentPanel({
 
       onDocumentChanged(createdDocument)
       setIsFormOpen(false)
+      onRegistrationFlowReset?.()
       onFeedback(config.savedMessage)
     } catch (submitError) {
       setSaveError(submitError instanceof Error ? submitError.message : "No se pudo guardar el documento.")
@@ -670,21 +696,29 @@ export function VehicleDocumentPanel({
   const metrics = document ? getDocumentMetrics(documentType, document, vehicle) : []
 
   return (
-    <section className="insurance-policy-panel">
+    <section className={`insurance-policy-panel${documentType === "registration_card" ? " insurance-policy-panel--registration" : ""}`}>
       <button className="summary-back-button" onClick={onBackToSummary} type="button">
         <ArrowLeft aria-hidden="true" size={17} />
         Atrás
       </button>
 
-      <header className="insurance-policy-header">
+      <header className={`insurance-policy-header${documentType === "registration_card" ? " insurance-policy-header--registration" : ""}`}>
         <div>
-          <h3>{config.title}</h3>
+          <h3>{circulationLabel ? `Tarjeta de circulación ${circulationLabel.toLowerCase()}` : config.title}</h3>
         </div>
-        {document ? (
-          <button className="button button--secondary" onClick={() => setIsFormOpen(true)} type="button">
-            <FileUp aria-hidden="true" size={17} />
-            {config.updateLabel}
-          </button>
+        {document && documentType !== "registration_card" ? (
+          <div className="insurance-policy-header__actions">
+            {onRegister ? (
+              <button className="button button--secondary" onClick={onRegister} type="button">
+                <FileUp aria-hidden="true" size={17} />
+                {config.uploadLabel}
+              </button>
+            ) : null}
+            <button className="button button--secondary" onClick={() => setIsFormOpen(true)} type="button">
+              <FileUp aria-hidden="true" size={17} />
+              {config.updateLabel}
+            </button>
+          </div>
         ) : null}
       </header>
 
@@ -696,13 +730,20 @@ export function VehicleDocumentPanel({
           <span>{error}</span>
         </div>
       ) : !document ? (
-        <section className="insurance-empty-state">
-          <div className="insurance-empty-state__icon">{config.icon}</div>
+        <section className={`insurance-empty-state${circulationLabel ? " insurance-empty-state--pending" : ""}`}>
+          <div className="insurance-empty-state__icon">
+            {circulationLabel ? <AlertTriangle aria-hidden="true" size={28} /> : config.icon}
+          </div>
           <div>
-            <span>{config.title}</span>
-            <h3>{config.emptyTitle}</h3>
-            <p>{config.emptyText}</p>
-            <button className="button button--primary" onClick={() => setIsFormOpen(true)} type="button">
+            <span>{circulationLabel ? `Documento de la placa ${circulationLabel.toLowerCase()} de esta unidad.` : config.title}</span>
+            <h3>{circulationLabel ? "Documento pendiente" : config.emptyTitle}</h3>
+            {circulationLabel ? <strong className="insurance-empty-state__plate">{vehiclePlate || "Sin placa registrada"}</strong> : null}
+            <p>
+              {circulationLabel
+                ? `La tarjeta de circulación ${circulationLabel.toLowerCase()} aún no está registrada para esta placa.`
+                : config.emptyText}
+            </p>
+            <button className="button button--primary" onClick={registerDocument} type="button">
               <FileUp aria-hidden="true" size={17} />
               {config.uploadLabel}
             </button>
@@ -713,7 +754,7 @@ export function VehicleDocumentPanel({
           <section className="insurance-policy-info">
             <div className="insurance-policy-info__title">
               <div>
-                <span>{config.title}</span>
+                <span>{circulationLabel ? `Documento vigente de la placa ${circulationLabel.toLowerCase()}.` : config.title}</span>
                 <h3>{getDocumentTitleValue(documentType, document)}</h3>
               </div>
               <span className={`document-status document-status--${status.tone}`}>{status.label}</span>
@@ -793,12 +834,14 @@ export function VehicleDocumentPanel({
 
       {isFormOpen ? (
         <VehicleDocumentForm
+          circulationType={circulationType ?? null}
           documentType={documentType}
           error={saveError}
           isSaving={isSaving}
           onClose={() => {
             setSaveError(null)
             setIsFormOpen(false)
+            onRegistrationFlowReset?.()
           }}
           onSubmit={handleSubmit}
           vehicle={vehicle}

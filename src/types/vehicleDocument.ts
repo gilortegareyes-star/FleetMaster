@@ -13,6 +13,7 @@ export const allowedVehicleDocumentMimeTypes = [
 
 export type VehicleDocumentType = (typeof vehicleDocumentTypes)[number]
 export type VehicleDocumentMimeType = (typeof allowedVehicleDocumentMimeTypes)[number]
+export type CirculationType = "state" | "federal"
 
 export type VehicleInspectionResult = "approved" | "rejected" | "not_applicable"
 
@@ -26,6 +27,7 @@ export interface VehicleDocument {
   id: string
   vehicleId: string
   documentType: VehicleDocumentType
+  circulationType: CirculationType | null
   documentNumber: string | null
   issuer: string | null
   validFrom: string | null
@@ -50,7 +52,6 @@ export interface InsurancePolicyFormValues {
   documentNumber: string
   validFrom: string
   validUntil: string
-  cost: string
   contactName: string
   contactPhone: string
   notes: string
@@ -60,6 +61,7 @@ export interface InsurancePolicyFormValues {
 export interface VehicleDocumentPayload {
   vehicleId: string
   documentType: VehicleDocumentType
+  circulationType?: CirculationType | null
   issuer: string
   documentNumber: string
   validFrom: string | null
@@ -86,6 +88,7 @@ export interface RegistrationCardFormValues {
 
 export interface RegistrationCardPayload {
   vehicleId: string
+  circulationType: CirculationType
   documentNumber: string
   plateNumber: string | null
   issuingState: string | null

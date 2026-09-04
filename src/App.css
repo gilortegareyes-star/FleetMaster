@@ -1137,6 +1137,11 @@
   line-height: 1.15;
 }
 
+.insurance-policy-header--registration h3 {
+  font-size: 1.72rem;
+  font-weight: 760;
+}
+
 .insurance-empty-state,
 .insurance-policy-info,
 .document-preview {
@@ -1153,6 +1158,24 @@
   align-content: center;
   justify-content: center;
   padding: 34px;
+}
+
+.insurance-empty-state--pending {
+  border-color: #eadfbf;
+  background: #fffdf7;
+}
+
+.insurance-empty-state--pending .insurance-empty-state__icon {
+  background: #fff6dc;
+  color: #a87519;
+}
+
+.insurance-empty-state__plate {
+  display: block;
+  margin-top: 14px;
+  color: #25312d;
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
 }
 
 .insurance-empty-state p {
@@ -1176,6 +1199,10 @@
   grid-template-columns: minmax(280px, 0.88fr) minmax(360px, 1.12fr);
   gap: 16px;
   align-items: start;
+}
+
+.insurance-policy-panel--registration + .insurance-policy-panel--registration {
+  margin-top: 28px;
 }
 
 .insurance-policy-info {
@@ -1663,6 +1690,52 @@
   letter-spacing: 0;
 }
 
+.vehicle-document-identity {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  color: #53615c;
+}
+
+.vehicle-document-identity__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  color: #53615c;
+  font-size: 0.94rem;
+  line-height: 1.35;
+}
+
+.vehicle-document-identity__summary strong {
+  color: #17211d;
+  font-size: 1.05rem;
+  font-weight: 780;
+}
+
+.vehicle-document-identity__vin {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.vehicle-document-identity__vin span {
+  color: #788681;
+  font-size: 0.72rem;
+  font-weight: 720;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.vehicle-document-identity__vin strong {
+  min-width: 0;
+  color: #25312d;
+  font-size: 0.92rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .vehicle-form--registration .vehicle-form__header p {
   margin-bottom: 7px;
   color: #76847f;
@@ -1755,6 +1828,136 @@
   border-radius: 8px;
   padding: 0 11px;
   background: #fbfcfb;
+}
+
+.field__reference-input {
+  border-color: #d6e2dd;
+  background: #f4f8f6;
+  color: #25312d;
+  cursor: default;
+  font-weight: 700;
+}
+
+.document-type-reference {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  border-bottom: 1px solid #edf1ef;
+  padding-bottom: 14px;
+}
+
+.document-type-reference span {
+  color: #788681;
+  font-size: 0.78rem;
+  font-weight: 720;
+}
+
+.document-type-reference strong {
+  color: #25312d;
+  font-size: 0.96rem;
+  font-weight: 780;
+}
+
+.modal-backdrop.modal-backdrop--registration-picker {
+  place-items: center;
+  justify-items: center;
+  padding: 20px;
+  background: rgba(18, 27, 24, 0.22);
+  backdrop-filter: blur(4px);
+}
+
+.registration-type-dialog {
+  position: relative;
+  width: min(520px, calc(100vw - 32px));
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dfe7e3;
+  border-radius: 12px;
+  padding: 26px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(13, 21, 18, 0.18);
+}
+
+.registration-type-dialog__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.registration-type-dialog > .button {
+  justify-self: center;
+  min-height: 38px;
+  padding-inline: 18px;
+}
+
+.registration-type-dialog p {
+  margin: 0;
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.registration-type-dialog h2 {
+  margin: 0;
+  color: #17211d;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.registration-type-dialog > span {
+  color: #53615c;
+  line-height: 1.5;
+}
+
+.registration-type-dialog__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.registration-type-dialog__options button {
+  min-width: 0;
+  min-height: 92px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid #dce5e1;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfcfb;
+  color: #25312d;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.registration-type-dialog__options button:hover,
+.registration-type-dialog__options button:focus-visible {
+  border-color: #9ac8bd;
+  background: #f4faf7;
+}
+
+.registration-type-dialog__options button strong {
+  color: #17211d;
+  font-size: 1rem;
+}
+
+.registration-type-dialog__options button span {
+  color: #64736d;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.insurance-policy-header__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .vehicle-form--registration .field > span {
@@ -3579,6 +3782,10 @@
 }
 
 @media (max-width: 620px) {
+  .registration-type-dialog__options {
+    grid-template-columns: 1fr;
+  }
+
   .maintenance-header,
   .maintenance-header__actions {
     align-items: stretch;

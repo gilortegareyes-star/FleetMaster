@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   TriangleAlert,
   Wrench,
+  X,
 } from "lucide-react"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { MaintenancePanel } from "./MaintenancePanel"
@@ -17,9 +18,9 @@ import { MaintenanceReportView } from "./MaintenanceReportView"
 import { StatusBadge } from "./StatusBadge"
 import { VehicleDocumentPanel } from "./VehicleDocumentPanel"
 import { getMaintenanceByVehicle } from "../services/maintenance"
-import { getCurrentVehicleDocument } from "../services/vehicleDocuments"
+import { getCurrentVehicleDocuments } from "../services/vehicleDocuments"
 import type { MaintenanceRecord } from "../types/maintenance"
-import type { VehicleDocument, VehicleInspectionResult } from "../types/vehicleDocument"
+import type { CirculationType, VehicleDocument, VehicleInspectionResult } from "../types/vehicleDocument"
 import type { Vehicle } from "../types/vehicle"
 import { getDocumentStatus } from "../utils/documentStatus"
 import { displayValue, formatCurrency, formatDate, formatMileage } from "../utils/formatters"
@@ -120,6 +121,14 @@ export function VehicleDetail({
     registration_card: null,
     vehicle_inspection: null,
   })
+  const [registrationCards, setRegistrationCards] = useState<Record<CirculationType, VehicleDocument | null>>({
+    state: null,
+    federal: null,
+  })
+  const [registrationType, setRegistrationType] = useState<CirculationType | null>(null)
+  const [registrationFormRequest, setRegistrationFormRequest] = useState(0)
+  const [isRegistrationTypePickerOpen, setIsRegistrationTypePickerOpen] = useState(false)
+  const [isNoPlateNoticeOpen, setIsNoPlateNoticeOpen] = useState(false)
   const [isDocumentSummaryLoading, setIsDocumentSummaryLoading] = useState(false)
   const [documentSummaryError, setDocumentSummaryError] = useState<string | null>(null)
   const fullName = [vehicle.brand, vehicle.model, vehicle.version].filter(Boolean).join(" ")
@@ -175,16 +184,19 @@ export function VehicleDetail({
       setDocumentSummaryError(null)
 
       try {
-        const [insurancePolicy, registrationCard, vehicleInspection] = await Promise.all([
-          getCurrentVehicleDocument(vehicle.id, "insurance_policy"),
-          getCurrentVehicleDocument(vehicle.id, "registration_card"),
-          getCurrentVehicleDocument(vehicle.id, "vehicle_inspection"),
-        ])
+        const documents = await getCurrentVehicleDocuments(vehicle.id)
+        const insurancePolicy = documents.find((document) => document.documentType === "insurance_policy") ?? null
+        const vehicleInspection = documents.find((document) => document.documentType === "vehicle_inspection") ?? null
+        const nextRegistrationCards: Record<CirculationType, VehicleDocument | null> = {
+          state: documents.find((document) => document.documentType === "registration_card" && document.circulationType === "state") ?? null,
+          federal: documents.find((document) => document.documentType === "registration_card" && document.circulationType === "federal") ?? null,
+        }
 
         if (isActive) {
+          setRegistrationCards(nextRegistrationCards)
           setVehicleDocuments({
             insurance_policy: insurancePolicy,
-            registration_card: registrationCard,
+            registration_card: nextRegistrationCards.state ?? nextRegistrationCards.federal,
             vehicle_inspection: vehicleInspection,
           })
         }
@@ -195,6 +207,7 @@ export function VehicleDetail({
             registration_card: null,
             vehicle_inspection: null,
           })
+          setRegistrationCards({ state: null, federal: null })
           setDocumentSummaryError(error instanceof Error ? error.message : "No se pudieron cargar los documentos.")
         }
       } finally {
@@ -232,7 +245,7 @@ export function VehicleDetail({
       : nextServiceRecord.nextServiceMileage - vehicle.currentMileage
 
   const insurancePolicy = vehicleDocuments.insurance_policy
-  const registrationCard = vehicleDocuments.registration_card
+  const registrationCard = registrationType ? registrationCards[registrationType] : vehicleDocuments.registration_card
   const vehicleInspection = vehicleDocuments.vehicle_inspection
   const tabs: Array<{ id: UnitTab; label: string; icon: ReactNode }> = [
     { id: "summary", label: "Resumen", icon: <Gauge aria-hidden="true" size={17} /> },
@@ -241,15 +254,68 @@ export function VehicleDetail({
     { id: "issues", label: "Fallas", icon: <TriangleAlert aria-hidden="true" size={17} /> },
   ]
   const insuranceStatus = getDocumentStatus(insurancePolicy)
-  const registrationStatus = getDocumentStatus(registrationCard)
+  const registrationStatuses = {
+    state: getDocumentStatus(registrationCards.state),
+    federal: getDocumentStatus(registrationCards.federal),
+  }
   const inspectionStatus = getDocumentStatus(vehicleInspection)
   const insuranceComplete = insurancePolicy !== null && ["Vigente", "Próximo a vencer"].includes(insuranceStatus.label)
-  const registrationComplete = registrationCard !== null && registrationStatus.label !== "Vencido"
+  const requiredCirculationTypes = [
+    stateLicensePlate ? "state" : null,
+    federalLicensePlate ? "federal" : null,
+  ].filter((type): type is CirculationType => type !== null)
+  const missingCirculationTypes = requiredCirculationTypes.filter((type) => registrationCards[type] === null)
+  const registrationComplete =
+    requiredCirculationTypes.length > 0 &&
+    requiredCirculationTypes.every((type) => {
+      const document = registrationCards[type]
+      return document !== null && registrationStatuses[type].label !== "Vencido"
+    })
   const pendingDocumentCount = [!insuranceComplete, !registrationComplete].filter(Boolean).length
-  const isDocumentallyEnabled = !isDocumentSummaryLoading && !documentSummaryError && pendingDocumentCount === 0
   const hasPendingRequiredDocuments = !isDocumentSummaryLoading && !documentSummaryError && pendingDocumentCount > 0
   const isDocumentView =
     activeTab === "insurancePolicy" || activeTab === "registrationCard" || activeTab === "vehicleInspection"
+  const resetRegistrationFlow = () => {
+    setRegistrationType(null)
+    setRegistrationFormRequest(0)
+    setIsRegistrationTypePickerOpen(false)
+  }
+
+  const openRegistrationDocuments = () => {
+    resetRegistrationFlow()
+    setActiveTab("registrationCard")
+  }
+
+  const openRegistrationCard = () => {
+    resetRegistrationFlow()
+
+    if (requiredCirculationTypes.length === 0) {
+      setIsNoPlateNoticeOpen(true)
+      return
+    }
+
+    if (missingCirculationTypes.length > 0) {
+      setIsRegistrationTypePickerOpen(true)
+      return
+    }
+  }
+
+  const selectRegistrationType = (type: CirculationType) => {
+    setRegistrationType(type)
+    setIsRegistrationTypePickerOpen(false)
+    setRegistrationFormRequest((current) => current + 1)
+    setActiveTab("registrationCard")
+  }
+
+  const closeRegistrationTypePicker = () => {
+    resetRegistrationFlow()
+  }
+
+  const registrationViewTypes: Array<CirculationType | null> = registrationType
+    ? [registrationType]
+    : requiredCirculationTypes
+  const registrationPanelTypes = registrationViewTypes.length > 0 ? registrationViewTypes : [null]
+
   const documentShortcuts = [
     {
       label: "Póliza de seguro",
@@ -265,15 +331,17 @@ export function VehicleDetail({
     },
     {
       label: "Tarjeta de circulación",
-      detail: registrationCard
-        ? displayValue(registrationCard.details.plateNumber ?? vehicle.licensePlate ?? registrationCard.issuer)
-        : "Sin registrar",
-      status: registrationCard ? registrationStatus.label : "Pendiente",
-      statusTone: registrationCard ? registrationStatus.tone : "warning",
+      detail: requiredCirculationTypes.length === 2
+        ? `Estatal: ${registrationCards.state ? registrationStatuses.state.label : "Pendiente"} · Federal: ${registrationCards.federal ? registrationStatuses.federal.label : "Pendiente"}`
+        : registrationCard
+          ? `${requiredCirculationTypes[0] === "state" ? "Estatal" : "Federal"}: ${displayValue(registrationCard.details.plateNumber ?? (requiredCirculationTypes[0] === "state" ? stateLicensePlate : federalLicensePlate))}`
+          : "Sin registrar",
+      status: registrationComplete ? "Completa" : "Pendiente",
+      statusTone: registrationComplete ? "current" : "warning",
       isRequired: true,
       isPending: !registrationComplete,
       icon: <IdCard aria-hidden="true" size={17} />,
-      onClick: () => setActiveTab("registrationCard"),
+      onClick: openRegistrationDocuments,
     },
     {
       label: "Verificación vehicular",
@@ -568,20 +636,30 @@ export function VehicleDetail({
         />
       ) : null}
 
-      {activeTab === "registrationCard" ? (
-        <VehicleDocumentPanel
-          document={registrationCard}
-          documentType={documentPanelByTab.registrationCard}
-          error={documentSummaryError}
-          isLoading={isDocumentSummaryLoading}
-          onBackToSummary={() => setActiveTab("summary")}
-          onDocumentChanged={(document) =>
-            setVehicleDocuments((current) => ({ ...current, registration_card: document }))
-          }
-          onFeedback={onFeedback}
-          vehicle={vehicle}
-        />
-      ) : null}
+      {activeTab === "registrationCard"
+        ? registrationPanelTypes.map((type) => (
+            <VehicleDocumentPanel
+              document={type ? registrationCards[type] : null}
+              circulationType={type}
+              documentType={documentPanelByTab.registrationCard}
+              error={documentSummaryError}
+              isLoading={isDocumentSummaryLoading}
+              key={type ?? "empty"}
+              onBackToSummary={() => {
+                resetRegistrationFlow()
+                setActiveTab("summary")
+              }}
+              onDocumentChanged={(document) =>
+                setRegistrationCards((current) => ({ ...current, [type ?? registrationType ?? "state"]: document }))
+              }
+              onFeedback={onFeedback}
+              onRegister={type === null || missingCirculationTypes.length > 0 ? openRegistrationCard : undefined}
+              onRegistrationFlowReset={resetRegistrationFlow}
+              registrationFormRequest={registrationFormRequest}
+              vehicle={vehicle}
+            />
+          ))
+        : null}
 
       {activeTab === "vehicleInspection" ? (
         <VehicleDocumentPanel
@@ -637,6 +715,52 @@ export function VehicleDetail({
             </InformationGroup>
           </div>
         </section>
+      ) : null}
+
+      {isRegistrationTypePickerOpen ? (
+        <div className="modal-backdrop modal-backdrop--registration-picker" role="presentation">
+          <section aria-modal="true" className="registration-type-dialog" role="dialog">
+            <button
+              aria-label="Cerrar selección de tarjeta"
+              className="icon-button registration-type-dialog__close"
+              onClick={closeRegistrationTypePicker}
+              type="button"
+            >
+              <X aria-hidden="true" size={19} />
+            </button>
+            <p>Tarjeta de circulación</p>
+            <h2>¿Qué tipo de tarjeta deseas registrar?</h2>
+            <span>
+              {missingCirculationTypes.length === 2
+                ? "Esta unidad cuenta con placa estatal y federal. Selecciona el documento que deseas registrar."
+                : "Selecciona el tipo de tarjeta que deseas registrar."}
+            </span>
+            <div className="registration-type-dialog__options">
+              {missingCirculationTypes.map((type) => (
+                <button key={type} onClick={() => selectRegistrationType(type)} type="button">
+                  <strong>{type === "state" ? "Estatal" : "Federal"}</strong>
+                  <span>{type === "state" ? stateLicensePlate : federalLicensePlate}</span>
+                </button>
+              ))}
+            </div>
+            <button className="button button--secondary" onClick={closeRegistrationTypePicker} type="button">
+              Cancelar
+            </button>
+          </section>
+        </div>
+      ) : null}
+
+      {isNoPlateNoticeOpen ? (
+        <div className="modal-backdrop modal-backdrop--registration-picker" role="presentation">
+          <section aria-modal="true" className="registration-type-dialog" role="dialog">
+            <p>Tarjeta de circulación</p>
+            <h2>No hay placas registradas</h2>
+            <span>Esta unidad no tiene una placa estatal ni federal registrada. Agrega la placa desde Editar unidad antes de registrar una tarjeta de circulación.</span>
+            <button className="button button--secondary" onClick={() => setIsNoPlateNoticeOpen(false)} type="button">
+              Cerrar
+            </button>
+          </section>
+        </div>
       ) : null}
     </article>
   )

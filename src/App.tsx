@@ -76,7 +76,7 @@ function App() {
 
     const loadDocumentStatus = async () => {
       try {
-        const pendingVehicleIds = await getVehiclesWithPendingRequiredDocuments(vehicleIds)
+        const pendingVehicleIds = await getVehiclesWithPendingRequiredDocuments(vehicles)
         if (isActive) {
           setPendingDocumentVehicleIds(pendingVehicleIds)
         }
