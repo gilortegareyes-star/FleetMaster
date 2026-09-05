@@ -65,6 +65,22 @@ const friendlyMaintenanceError = (message: string) => {
     return "La unidad seleccionada no existe o no está disponible."
   }
 
+  if (normalized.includes("vehicle not found or unavailable")) {
+    return "La unidad seleccionada no existe o no está disponible."
+  }
+
+  if (normalized.includes("authentication required")) {
+    return "Inicia sesión para registrar un mantenimiento."
+  }
+
+  if (normalized.includes("insufficient organization permissions")) {
+    return "No tienes permisos para registrar mantenimiento en esta unidad."
+  }
+
+  if (normalized.includes("active organization")) {
+    return "Tu cuenta no tiene una organización activa disponible."
+  }
+
   if (normalized.includes("check constraint") || normalized.includes("violates check")) {
     return "Revisa los datos del mantenimiento antes de guardar."
   }
@@ -111,11 +127,20 @@ export const getMaintenanceById = async (maintenanceId: string) => {
 
 export const createMaintenance = async (payload: MaintenancePayload) => {
   try {
-    const { data, error } = await getSupabaseClient()
-      .from("maintenance_records")
-      .insert(toMaintenanceRow(payload))
-      .select("*")
-      .single()
+    const row = toMaintenanceRow(payload)
+    const { data, error } = await getSupabaseClient().rpc("create_maintenance_record", {
+      p_vehicle_id: row.vehicle_id,
+      p_service_date: row.service_date,
+      p_mileage: row.mileage,
+      p_maintenance_type: row.maintenance_type,
+      p_description: row.description,
+      p_provider: row.provider,
+      p_total_cost: row.total_cost,
+      p_next_service_mileage: row.next_service_mileage,
+      p_next_service_date: row.next_service_date,
+      p_notes: row.notes,
+      p_status: "completed",
+    })
 
     if (error) {
       throw error
@@ -147,19 +172,19 @@ export const createOpenMaintenanceOrder = async (
   let maintenance: MaintenanceRecord
 
   try {
-    const { data, error } = await getSupabaseClient()
-      .from("maintenance_records")
-      .insert({
-        vehicle_id: payload.vehicleId,
-        service_date: payload.serviceDate,
-        mileage: null,
-        maintenance_type: payload.maintenanceType,
-        description: null,
-        provider: payload.provider?.trim() || null,
-        status: "open",
-      })
-      .select("*")
-      .single()
+    const { data, error } = await getSupabaseClient().rpc("create_maintenance_record", {
+      p_vehicle_id: payload.vehicleId,
+      p_service_date: payload.serviceDate,
+      p_mileage: null,
+      p_maintenance_type: payload.maintenanceType,
+      p_description: null,
+      p_provider: payload.provider?.trim() || null,
+      p_total_cost: null,
+      p_next_service_mileage: null,
+      p_next_service_date: null,
+      p_notes: null,
+      p_status: "open",
+    })
 
     if (error) {
       throw error
