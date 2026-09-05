@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react"
 import { ArrowRight, LockKeyhole, Mail } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 
-export function Login() {
+export function Login({ hasInvitation = false }: { hasInvitation?: boolean }) {
   const { signIn } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -32,8 +32,8 @@ export function Login() {
         </div>
         <div className="login-heading">
           <p>Acceso privado</p>
-          <h1 id="login-title">Bienvenido de nuevo</h1>
-          <span>Ingresa para continuar con la gestión de tu flota.</span>
+          <h1 id="login-title">{hasInvitation ? "Acepta tu invitación" : "Bienvenido de nuevo"}</h1>
+          <span>{hasInvitation ? "Inicia sesión para continuar con tu incorporación." : "Ingresa para continuar con la gestión de tu flota."}</span>
         </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="login-field">

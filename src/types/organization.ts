@@ -20,10 +20,25 @@ export interface Organization {
   updatedAt: string
 }
 
+export interface OrganizationSummary extends Organization {
+  seatsUsed: number
+  seatsAvailable: number
+}
+
+export interface CreateOrganizationInput {
+  name: string
+  seatLimit: number
+}
+
+export interface UpdateOrganizationInput extends CreateOrganizationInput {
+  organizationId: string
+}
+
 export interface OrganizationInvitation {
   id: string
   organizationId: string
   email: string
+  inviteeName: string | null
   role: OrganizationRole
   invitedBy: string
   status: OrganizationInvitationStatus
@@ -38,5 +53,49 @@ export interface CreateOrganizationInvitationInput {
   organizationId: string
   email: string
   role: OrganizationRole
+  expiresAt: string
+}
+
+export type OrganizationUserRecordType = "membership" | "invitation"
+
+export interface OrganizationUserRecord {
+  id: string
+  userId?: string | null
+  displayName: string | null
+  email: string
+  role: OrganizationRole
+  status: string
+  recordType: OrganizationUserRecordType
+  createdAt: string
+  expiresAt?: string | null
+  acceptedAt?: string | null
+}
+
+export interface InvitationContext {
+  invitationId: string
+  organizationId: string
+  organizationName: string
+  inviteeName: string | null
+  role: OrganizationRole
+  expiresAt: string
+}
+
+export interface OrganizationAccess {
+  organizationId: string
+  organizationName: string
+  role: OrganizationRole
+  status: MembershipStatus
+  displayName: string | null
+  email: string
+  membershipCreatedAt: string
+  seatLimit: number
+  seatsUsed: number
+  seatsAvailable: number
+}
+
+export interface CreateManagerInvitationInput {
+  organizationId: string
+  inviteeName: string
+  email: string
   expiresAt: string
 }

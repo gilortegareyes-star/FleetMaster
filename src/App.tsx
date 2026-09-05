@@ -9,6 +9,7 @@ import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
 import { isSupabaseConfigured } from "./services/supabase"
 import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
 import { useAuth } from "./contexts/AuthContext"
+import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 
 type ActiveView = "inicio" | "unidades" | "administracion"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
@@ -258,11 +259,7 @@ function App() {
 
       <main className="content-shell">
         {activeView === "administracion" ? (
-          <section className="admin-placeholder">
-            <p>Administración</p>
-            <h1>Gestión de empresas y usuarios de FleetMaster.</h1>
-            <span>Este espacio estará disponible en la siguiente fase.</span>
-          </section>
+          <AdminOrganizationsPage onFeedback={setFeedback} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>
@@ -292,8 +289,6 @@ function App() {
                 Nueva unidad
               </button>
             </header>
-
-            {feedback ? <div className="toast">{feedback}</div> : null}
 
             <section className="fleet-summary" aria-label="Resumen de flota">
               <div className="fleet-metric">
@@ -410,6 +405,8 @@ function App() {
           </section>
         )}
       </main>
+
+      {feedback ? <div className="toast">{feedback}</div> : null}
 
       {formState ? (
         <VehicleForm
