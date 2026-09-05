@@ -254,6 +254,16 @@ export function MaintenancePanel({
           <h3>Mantenimientos</h3>
           <span>Historial y servicios realizados a esta unidad</span>
         </div>
+        <div className="maintenance-header__actions">
+          <button className="button button--primary" disabled={Boolean(openRecord)} onClick={openOrderForm} type="button">
+            <Plus aria-hidden="true" size={17} />
+            Nueva orden de mantenimiento
+          </button>
+          <button className="button button--secondary" onClick={openCreateForm} type="button">
+            <Wrench aria-hidden="true" size={17} />
+            Registrar mantenimiento
+          </button>
+        </div>
       </header>
 
       {isLoading ? (

@@ -15,6 +15,15 @@ import { useOrganization } from "./contexts/OrganizationContext"
 type ActiveView = "inicio" | "unidades" | "administracion"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
+const navigationStorageKey = "fleetmaster.navigation.v1"
+const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion"])
+
+interface StoredNavigation {
+  userId: string
+  organizationId: string | null
+  activeView: ActiveView
+}
+
 const initialFilters: VehicleFilters = {
   query: "",
   status: "Todos",
@@ -37,6 +46,56 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [pendingDocumentVehicleIds, setPendingDocumentVehicleIds] = useState<Set<string> | null>(null)
+
+  const storeNavigation = (view: ActiveView, organizationId = activeOrganization?.id ?? null) => {
+    if (!user) return
+    const stored: StoredNavigation = { userId: user.id, organizationId, activeView: view }
+    window.sessionStorage.setItem(navigationStorageKey, JSON.stringify(stored))
+  }
+
+  const navigateTo = (view: ActiveView) => {
+    setActiveView(view)
+    storeNavigation(view)
+  }
+
+  useEffect(() => {
+    if (!user) {
+      window.sessionStorage.removeItem(navigationStorageKey)
+      setActiveView("unidades")
+      return
+    }
+
+    const raw = window.sessionStorage.getItem(navigationStorageKey)
+    if (!raw) return
+
+    try {
+      const stored = JSON.parse(raw) as Partial<StoredNavigation>
+      if (
+        stored.userId !== user.id ||
+        typeof stored.activeView !== "string" ||
+        !validActiveViews.has(stored.activeView as ActiveView) ||
+        (stored.organizationId !== null && typeof stored.organizationId !== "string")
+      ) {
+        window.sessionStorage.removeItem(navigationStorageKey)
+        setActiveView("unidades")
+        return
+      }
+
+      if (activeOrganization?.id) {
+        if (stored.organizationId === activeOrganization.id) {
+          setActiveView(stored.activeView as ActiveView)
+        } else {
+          window.sessionStorage.removeItem(navigationStorageKey)
+          setActiveView("unidades")
+        }
+      } else if (stored.organizationId === null) {
+        setActiveView(stored.activeView as ActiveView)
+      }
+    } catch {
+      window.sessionStorage.removeItem(navigationStorageKey)
+      setActiveView("unidades")
+    }
+  }, [activeOrganization?.id, user?.id])
 
   useEffect(() => {
     let isActive = true
@@ -250,7 +309,7 @@ function App() {
         <nav aria-label="Principal">
           <button
             className={activeView === "inicio" ? "nav-item nav-item--active" : "nav-item"}
-            onClick={() => setActiveView("inicio")}
+            onClick={() => navigateTo("inicio")}
             type="button"
           >
             <Home aria-hidden="true" size={19} />
@@ -259,7 +318,7 @@ function App() {
           <button
             className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => {
-              setActiveView("unidades")
+              navigateTo("unidades")
               setIsVehicleCenterOpen(false)
             }}
             type="button"
@@ -269,7 +328,7 @@ function App() {
           </button>
           <button
             className={activeView === "administracion" ? "nav-item nav-item--active" : "nav-item"}
-            onClick={() => setActiveView("administracion")}
+            onClick={() => navigateTo("administracion")}
             type="button"
           >
             <Settings2 aria-hidden="true" size={19} />
@@ -289,9 +348,9 @@ function App() {
       </aside>
 
       <main className="content-shell">
-        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { setActiveView("administracion"); clearActiveOrganization() }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
+        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" ? (
-          <AdminOrganizationsPage onEnterOrganization={() => setActiveView("unidades")} onFeedback={setFeedback} />
+          <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades")} onFeedback={setFeedback} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>
