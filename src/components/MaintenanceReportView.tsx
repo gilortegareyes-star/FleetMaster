@@ -42,9 +42,9 @@ function ReportField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function ReportSection({ title, children }: { title: string; children: React.ReactNode }) {
+function ReportSection({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="maintenance-report__section">
+    <section className="maintenance-report__section" id={id}>
       <h3>{title}</h3>
       {children}
     </section>
@@ -125,8 +125,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
     }
   }, [maintenance.id])
 
-  const vehicleName = [vehicle.brand, vehicle.model, vehicle.version].filter(Boolean).join(" ")
-  const identityLine = [String(vehicle.year), vehicle.licensePlate].filter(Boolean).join(" · ")
+  const vehicleName = [vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "Sin registrar"
   const nextService = [
     maintenance.nextServiceMileage === null ? null : `${formatMileage(maintenance.nextServiceMileage)} km`,
     maintenance.nextServiceDate === null ? null : formatDate(maintenance.nextServiceDate),
@@ -224,13 +223,13 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       <header className="maintenance-report__header">
         <div>
           <p className="maintenance-report__breadcrumb">
-            Centro de control <span>/</span> {vehicle.internalCode} <span>/</span> Mantenimiento
+            Centro de control <span>/</span> {vehicle.internalCode} <span>/</span> Mantenimientos <span>/</span> {maintenance.folio}
           </p>
-          <h3>Informe de mantenimiento</h3>
+          <h3>Orden de mantenimiento</h3>
           <div className="maintenance-report__meta">
             <span className="maintenance-report__folio">{maintenance.folio}</span>
             <span className={`maintenance-report__status maintenance-report__status--${maintenance.status}`}>
-              {maintenanceStatusLabels[maintenance.status]}
+              {maintenance.status === "open" ? "En curso" : maintenanceStatusLabels[maintenance.status]}
             </span>
           </div>
         </div>
@@ -244,7 +243,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           type="button"
         >
           <Edit3 aria-hidden="true" size={17} />
-          {maintenance.status === "open" ? "Continuar mantenimiento" : report ? "Editar informe" : "Completar informe"}
+          {maintenance.status === "open" ? "Editar orden" : report ? "Editar informe" : "Completar informe"}
         </button>
       </header>
 
@@ -253,35 +252,45 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           <span>Unidad</span>
           <strong>{vehicle.internalCode}</strong>
           <p>{vehicleName}</p>
-          <small>{identityLine}</small>
+          <small>{vehicle.year ? String(vehicle.year) : "Sin registrar"}</small>
+          {hasText(vehicle.licensePlate) ? <small>Placas: {vehicle.licensePlate}</small> : null}
         </div>
         <div className="maintenance-report__order-details">
           <ReportField label="Tipo de servicio" value={maintenance.maintenanceType} />
-          {hasText(maintenance.provider) ? <ReportField label="Taller / proveedor" value={maintenance.provider.trim()} /> : null}
+          <ReportField label="Taller / proveedor" value={hasText(maintenance.provider) ? maintenance.provider.trim() : "Sin registrar"} />
         </div>
         <div className="maintenance-report__order-facts">
-          <ReportField label="Fecha" value={formatDate(maintenance.serviceDate)} />
-          <ReportField label="Kilometraje" value={maintenance.mileage === null ? "—" : `${formatMileage(maintenance.mileage)} km`} />
+          <ReportField label="Fecha de ingreso" value={formatDate(maintenance.serviceDate)} />
+          <ReportField label="Kilometraje de entrada" value={maintenance.mileage === null ? "Sin registrar" : `${formatMileage(maintenance.mileage)} km`} />
         </div>
       </section>
+
+      <nav aria-label="Secciones de la orden" className="maintenance-report__nav">
+        <a href="#maintenance-report-summary">Resumen</a>
+        {workItems.length > 0 ? <a href="#maintenance-report-work">Trabajos</a> : null}
+        {parts.length > 0 ? <a href="#maintenance-report-parts">Refacciones</a> : null}
+        {costItems.length > 0 ? <a href="#maintenance-report-costs">Costos</a> : null}
+        <a href="#maintenance-report-details">Reportes</a>
+      </nav>
 
       {loadError ? <div className="form-banner maintenance-report__error">{loadError}</div> : null}
 
       <div className="maintenance-report__layout">
         <main className="maintenance-report__main maintenance-report__document">
-          {hasText(maintenance.description) ? <section className="maintenance-report__summary-card maintenance-report__document-section">
+          <section className="maintenance-report__summary-card maintenance-report__document-section" id="maintenance-report-summary">
             <div className="section-title">
               <FileText aria-hidden="true" size={18} />
-              <h3>{workItems.length > 0 ? "Resumen del servicio" : "Resumen del servicio"}</h3>
+              <h3>Descripción de la orden</h3>
             </div>
             <div className="maintenance-report__work">
-              <span>Trabajo realizado</span>
-              <p>{maintenance.description}</p>
+              {hasText(maintenance.description) ? <p>{maintenance.description}</p> : null}
+              {report?.reason ? <div className="maintenance-report__description-field"><span>Motivo de ingreso</span><p>{report.reason}</p></div> : null}
+              {hasText(maintenance.notes) ? <div className="maintenance-report__description-field"><span>Notas</span><p>{maintenance.notes.trim()}</p></div> : null}
+              {!hasText(maintenance.description) && !report?.reason && !hasText(maintenance.notes) ? <p className="maintenance-report__empty-value">Sin registrar</p> : null}
             </div>
-          </section> : null}
+          </section>
 
-          {report?.reason ? <ReportSection title="Motivo de ingreso"><p>{report.reason}</p></ReportSection> : null}
-
+          <div id="maintenance-report-details">
           {report?.entryAt || report?.exitAt || report?.entryMileage !== null && report?.entryMileage !== undefined ? (
             <ReportSection title="Ingreso y salida">
               <div className="maintenance-report__timeline">
@@ -295,22 +304,23 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
 
           {report?.diagnosis ? <ReportSection title="Diagnóstico"><p>{report.diagnosis}</p></ReportSection> : null}
 
-          {workItems.length > 0 ? <ReportSection title="Trabajos realizados"><ul className="maintenance-work-items__list">{workItems.map((item) => <li key={item.id}><CheckCircle2 aria-hidden="true" size={18} /><div><strong>{item.description}</strong>{hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}</div></li>)}</ul></ReportSection> : null}
+          {workItems.length > 0 ? <div id="maintenance-report-work"><ReportSection title="Trabajos realizados"><ul className="maintenance-work-items__list">{workItems.map((item) => <li key={item.id}><CheckCircle2 aria-hidden="true" size={18} /><div><strong>{item.description}</strong>{hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}</div></li>)}</ul></ReportSection></div> : null}
 
-          {parts.length > 0 ? <ReportSection title="Refacciones y materiales"><div className="maintenance-parts__table"><div className="maintenance-parts__header"><span>Descripción</span><span>Cant.</span><span>Unitario</span><span>Importe</span></div>{parts.map((part) => <div className="maintenance-parts__row" key={part.id}><span>{part.description}{part.unit ? <small>{part.unit}</small> : null}</span><span>{part.quantity}</span><span>{formatCurrency(part.unitCost)}</span><strong>{formatCurrency(calculatePartSubtotal(part.quantity, part.unitCost))}</strong></div>)}</div></ReportSection> : null}
+          {parts.length > 0 ? <div id="maintenance-report-parts"><ReportSection title="Refacciones y materiales"><div className="maintenance-parts__table"><div className="maintenance-parts__header"><span>Descripción</span><span>Cant.</span><span>Unitario</span><span>Importe</span></div>{parts.map((part) => <div className="maintenance-parts__row" key={part.id}><span>{part.description}{part.unit ? <small>{part.unit}</small> : null}</span><span>{part.quantity}</span><span>{formatCurrency(part.unitCost)}</span><strong>{formatCurrency(calculatePartSubtotal(part.quantity, part.unitCost))}</strong></div>)}</div></ReportSection></div> : null}
 
           {report?.recommendations ? <ReportSection title="Recomendaciones"><p>{report.recommendations}</p></ReportSection> : null}
           {report?.pendingWork ? <ReportSection title="Trabajos pendientes"><p>{report.pendingWork}</p></ReportSection> : null}
           {report?.closureNotes || report?.closedBy ? <ReportSection title="Cierre"><div className="maintenance-report__conditions-grid">{report.closedBy ? <ReportField label="Responsable de cierre" value={report.closedBy} /> : null}{report.closureNotes ? <ReportField label="Observaciones" value={report.closureNotes} /> : null}</div></ReportSection> : null}
           {hasText(maintenance.notes) ? <ReportSection title="Notas generales"><p>{maintenance.notes.trim()}</p></ReportSection> : null}
+          </div>
         </main>
 
         <aside className="maintenance-report__aside">
-          <section className="maintenance-report__order-summary">
+          <section className="maintenance-report__order-summary" id="maintenance-report-costs">
             <h3>Resumen de la orden</h3>
             <div className="maintenance-report__summary-cost">
               <span>{hasEconomicBreakdown ? "Costos" : "Costo total"}</span>
-              {hasEconomicBreakdown ? <dl className="maintenance-cost-summary__view"><div><dt>Refacciones / materiales</dt><dd>{formatCurrency(partsTotal)}</dd></div><div><dt>Mano de obra</dt><dd>{formatCurrency(laborTotal)}</dd></div><div><dt>Otros cargos</dt><dd>{formatCurrency(otherTotal)}</dd></div><div className="maintenance-cost-summary__total"><dt>Total</dt><dd>{formatCurrency(economicTotal)}</dd></div></dl> : <strong className="maintenance-report__total-cost">{totalCost === null ? "Sin información" : formatCurrency(totalCost)}</strong>}
+              {hasEconomicBreakdown ? <dl className="maintenance-cost-summary__view"><div><dt>Refacciones / materiales</dt><dd>{formatCurrency(partsTotal)}</dd></div><div><dt>Mano de obra</dt><dd>{formatCurrency(laborTotal)}</dd></div><div><dt>Otros cargos</dt><dd>{formatCurrency(otherTotal)}</dd></div><div className="maintenance-cost-summary__total"><dt>Total</dt><dd>{formatCurrency(economicTotal)}</dd></div></dl> : <strong className="maintenance-report__total-cost">{totalCost === null ? "Sin registrar" : formatCurrency(totalCost)}</strong>}
             </div>
             {nextService ? <div className="maintenance-report__next-service"><span>Próximo servicio</span>{maintenance.nextServiceMileage !== null ? <strong>{formatMileage(maintenance.nextServiceMileage)} km</strong> : null}{maintenance.nextServiceDate !== null ? <small>{formatDate(maintenance.nextServiceDate)}</small> : null}</div> : null}
             {costItems.length > 0 ? <div className="maintenance-report__cost-items"><h3>Detalle de cargos</h3>{costItems.map((item) => <p key={item.id}><span>{item.kind === "labor" ? "Mano de obra" : "Otro"} · {item.description}</span><strong>{formatCurrency(item.amount)}</strong></p>)}</div> : null}

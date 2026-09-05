@@ -4289,6 +4289,141 @@
   }
 }
 
+/* Maintenance order workspace: compact hierarchy for real order data. */
+.maintenance-report__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e1e9e5;
+  padding-bottom: 8px;
+}
+
+.maintenance-report__nav a {
+  border-radius: 6px;
+  padding: 8px 11px;
+  color: #64736d;
+  font-size: 0.83rem;
+  font-weight: 760;
+  text-decoration: none;
+}
+
+.maintenance-report__nav a:hover,
+.maintenance-report__nav a:focus-visible {
+  outline: 0;
+  background: #eef7f3;
+  color: #0f615b;
+}
+
+.maintenance-report__order-band {
+  grid-template-columns: minmax(180px, 0.82fr) minmax(220px, 1fr) minmax(190px, 0.82fr);
+  gap: 28px;
+  padding: 20px 0;
+}
+
+.maintenance-report__order-band .maintenance-report__vehicle {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.maintenance-report__order-band .maintenance-report__vehicle > span,
+.maintenance-report__order-band .maintenance-report__field > span {
+  margin-bottom: 2px;
+}
+
+.maintenance-report__order-band .maintenance-report__vehicle p,
+.maintenance-report__order-band .maintenance-report__vehicle small {
+  margin: 0;
+}
+
+.maintenance-report__order-band .maintenance-report__vehicle small + small {
+  color: #64736d;
+  font-size: 0.82rem;
+}
+
+.maintenance-report__order-band .maintenance-report__order-details,
+.maintenance-report__order-band .maintenance-report__order-facts {
+  align-self: stretch;
+  align-content: center;
+}
+
+.maintenance-report__description-field {
+  margin-top: 16px;
+  border-top: 1px solid #edf1ef;
+  padding-top: 14px;
+}
+
+.maintenance-report__description-field span,
+.maintenance-report__empty-value {
+  color: #64736d;
+  font-size: 0.9rem;
+}
+
+.maintenance-report__description-field p {
+  margin-top: 5px !important;
+}
+
+.maintenance-report__empty-value {
+  margin: 0;
+}
+
+.maintenance-report__main > #maintenance-report-details {
+  min-width: 0;
+}
+
+.maintenance-report__order-summary > h3 {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1rem;
+}
+
+.maintenance-report__total-cost {
+  font-size: 1.42rem;
+}
+
+@media (max-width: 760px) {
+  .maintenance-report {
+    padding: 18px 16px 28px;
+  }
+
+  .maintenance-report__order-band,
+  .maintenance-report__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-report__order-band .maintenance-report__order-facts {
+    border-top: 1px solid #dfe7e3;
+    border-left: 0;
+    padding-top: 16px;
+    padding-left: 0;
+  }
+
+  .maintenance-report__aside {
+    position: static;
+  }
+
+  .maintenance-report__header .button {
+    width: auto;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 430px) {
+  .maintenance-report__header .button {
+    width: 100%;
+  }
+
+  .maintenance-report__nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .maintenance-report__nav a {
+    flex: 0 0 auto;
+  }
+}
+
 @media (max-width: 760px) {
   .app-shell {
     display: block;
