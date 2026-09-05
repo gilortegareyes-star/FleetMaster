@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
 import type { Session, User } from "@supabase/supabase-js"
 import { getSupabaseClient, isSupabaseConfigured } from "../services/supabase"
 import { getMyOrganizationAccess } from "../services/organizations"
@@ -64,6 +64,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isFleetmasterAdmin, setIsFleetmasterAdmin] = useState(false)
   const [organizationAccess, setOrganizationAccess] = useState<OrganizationAccess | null>(null)
   const [organizationAccessLoading, setOrganizationAccessLoading] = useState(true)
+  const currentUserIdRef = useRef<string | null>(null)
+  const authorizationResolvedRef = useRef(false)
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
@@ -78,11 +80,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const updateSession = async (nextSession: Session | null) => {
       const currentCheckId = ++sessionCheckId
+      const isSameResolvedUser = Boolean(
+        nextSession && authorizationResolvedRef.current && currentUserIdRef.current === nextSession.user.id,
+      )
+
+      currentUserIdRef.current = nextSession?.user.id ?? null
       setSession(nextSession)
-      setLoading(false)
       if (nextSession && initialInviteContext) setInviteSessionUserId((current) => current ?? nextSession.user.id)
 
       if (!nextSession) {
+        authorizationResolvedRef.current = false
+        setLoading(false)
         setInviteSessionUserId(null)
         setIsFleetmasterAdmin(false)
         setOrganizationAccess(null)
@@ -91,9 +99,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      const { data, error } = await supabase.rpc("is_fleetmaster_admin")
+
+      if (isSameResolvedUser) {
+        if (error || !isActive || currentCheckId !== sessionCheckId) return
+
+        if (data === true) {
+          setIsFleetmasterAdmin(true)
+          setOrganizationAccess(null)
+          return
+        }
+
+        try {
+          const access = await getMyOrganizationAccess()
+          if (isActive && currentCheckId === sessionCheckId) {
+            setIsFleetmasterAdmin(false)
+            setOrganizationAccess(access)
+          }
+        } catch {
+          // Keep the last known authorization during a transient revalidation failure.
+        }
+        return
+      }
+
+      authorizationResolvedRef.current = false
+      setLoading(true)
       setAuthorizationLoading(true)
       setOrganizationAccessLoading(true)
-      const { data, error } = await supabase.rpc("is_fleetmaster_admin")
+      setIsFleetmasterAdmin(false)
+      setOrganizationAccess(null)
 
       if (isActive && currentCheckId === sessionCheckId) {
         const isAdmin = !error && data === true
@@ -111,8 +145,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (isActive && currentCheckId === sessionCheckId) setOrganizationAccess(null)
             })
             .finally(() => {
-              if (isActive && currentCheckId === sessionCheckId) setOrganizationAccessLoading(false)
+              if (isActive && currentCheckId === sessionCheckId) {
+                authorizationResolvedRef.current = true
+                setOrganizationAccessLoading(false)
+                setLoading(false)
+              }
             })
+        }
+        if (isAdmin) {
+          authorizationResolvedRef.current = true
+          setLoading(false)
         }
       }
     }
