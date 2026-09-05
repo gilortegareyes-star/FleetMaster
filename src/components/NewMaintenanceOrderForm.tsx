@@ -61,12 +61,12 @@ export function NewMaintenanceOrderForm({ error, isSaving, onClose, onSubmit, ve
   }
 
   return (
-    <div aria-modal="true" className="modal-backdrop" role="dialog">
-      <form className="vehicle-form new-maintenance-order" onSubmit={(event) => void submit(event)}>
+    <div aria-modal="true" className="modal-backdrop modal-backdrop--wide" role="dialog">
+      <form className="vehicle-form vehicle-form--document-window new-maintenance-order" onSubmit={(event) => void submit(event)}>
         <header className="vehicle-form__header">
           <div>
             <p>Abrir orden</p>
-            <h2>Orden de mantenimiento</h2>
+            <h2>Nueva orden de mantenimiento</h2>
           </div>
           <button aria-label="Cerrar formulario" className="icon-button" onClick={onClose} type="button">
             <X aria-hidden="true" size={20} />

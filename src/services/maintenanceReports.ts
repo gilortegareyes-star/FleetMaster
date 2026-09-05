@@ -93,11 +93,20 @@ export const getMaintenanceReport = async (maintenanceId: string) => {
 
 export const saveMaintenanceReport = async (payload: MaintenanceReportPayload) => {
   try {
-    const { data, error } = await getSupabaseClient()
-      .from("maintenance_reports")
-      .upsert(toMaintenanceReportRow(payload), { onConflict: "maintenance_id" })
-      .select("*")
-      .single()
+    const row = toMaintenanceReportRow(payload)
+    const { data, error } = await getSupabaseClient().rpc("save_maintenance_report", {
+      p_maintenance_id: row.maintenance_id,
+      p_entry_at: row.entry_at,
+      p_exit_at: row.exit_at,
+      p_entry_mileage: row.entry_mileage,
+      p_reason: row.reason,
+      p_reception_conditions: row.reception_conditions,
+      p_diagnosis: row.diagnosis,
+      p_recommendations: row.recommendations,
+      p_pending_work: row.pending_work,
+      p_closed_by: row.closed_by,
+      p_closure_notes: row.closure_notes,
+    })
 
     if (error) {
       throw error
