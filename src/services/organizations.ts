@@ -147,20 +147,6 @@ interface OrganizationUserRow {
   accepted_at?: string | null
 }
 
-export class OrganizationUsersLoadError extends Error {
-  readonly code?: string
-  readonly details?: string
-  readonly hint?: string
-
-  constructor(error: { code?: unknown; message?: unknown; details?: unknown; hint?: unknown }) {
-    super(typeof error.message === "string" ? error.message : "No se pudo cargar la lista de usuarios.")
-    this.name = "OrganizationUsersLoadError"
-    this.code = typeof error.code === "string" ? error.code : undefined
-    this.details = typeof error.details === "string" ? error.details : undefined
-    this.hint = typeof error.hint === "string" ? error.hint : undefined
-  }
-}
-
 const toOrganizationUser = (row: OrganizationUserRow): OrganizationUserRecord => ({
   id: row.id,
   userId: row.user_id ?? null,
@@ -179,7 +165,7 @@ export const listOrganizationUsers = async (organizationId: string) => {
     p_organization_id: organizationId,
   })
 
-  if (error) throw new OrganizationUsersLoadError(error)
+  if (error) throwOrganizationError(error)
   return (data as OrganizationUserRow[]).map(toOrganizationUser)
 }
 
