@@ -43,7 +43,7 @@ export function InvitationOnboarding({ invitation, isNewUser, onAccepted }: { in
   }
 
   return <main className="auth-shell"><section className="invitation-panel" aria-labelledby="invitation-title">
-    <div className="invitation-panel__header"><div className="auth-loading-mark"><ShieldCheck aria-hidden="true" size={22} /></div><div><p>Invitación de organización</p><h1 id="invitation-title">Bienvenido a FleetMaster II</h1></div></div>
+    <div className="invitation-panel__header"><div className="auth-loading-mark"><ShieldCheck aria-hidden="true" size={22} /></div><div><p>Invitación de organización</p><h1 id="invitation-title">Bienvenido a FleetMaster II</h1></div><button className="button button--secondary invitation-panel__sign-out" onClick={() => void signOut()} type="button"><LogOut aria-hidden="true" size={17} />Cerrar sesión</button></div>
     <p className="invitation-panel__intro">Has sido invitado a <strong>{invitation.organizationName}</strong> como {roleLabels[invitation.role]}.</p>
     <form className="login-form" onSubmit={submit}>
       <label className="invitation-field"><span>Nombre completo</span><input autoComplete="name" maxLength={160} onChange={(event) => setFullName(event.target.value)} required value={fullName} /></label>
@@ -56,6 +56,5 @@ export function InvitationOnboarding({ invitation, isNewUser, onAccepted }: { in
       {error ? <p className="invitation-error" role="alert">{error}</p> : null}
       <button className="button button--primary" disabled={isSubmitting} type="submit"><CheckCircle2 aria-hidden="true" size={18} />{isSubmitting ? (isNewUser ? "Activando..." : "Aceptando...") : (isNewUser ? "Activar cuenta" : "Aceptar invitación")}</button>
     </form>
-    <button className="button button--secondary" onClick={() => void signOut()} type="button"><LogOut aria-hidden="true" size={17} />Cerrar sesión</button>
   </section></main>
 }

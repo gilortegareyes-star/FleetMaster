@@ -3802,7 +3802,12 @@
   gap: 20px;
 }
 
-.invitation-panel__header { justify-content: flex-start; align-items: center; }
+.invitation-panel__header { justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.invitation-panel__sign-out { flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 520px) {
+  .invitation-panel__header { align-items: flex-start; }
+  .invitation-panel__sign-out { padding-inline: 11px; }
+}
 .invitation-panel__header p,
 .organization-account-kicker { margin: 0 0 6px; color: #68766f; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .invitation-panel h1,
