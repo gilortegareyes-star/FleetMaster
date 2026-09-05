@@ -4695,6 +4695,20 @@
   color: #0f615b;
 }
 
+.maintenance-work-modal__catalog-item:disabled,
+.maintenance-work-modal__catalog-item.is-already-added {
+  background: #f7faf8;
+  color: #7b8983;
+  cursor: default;
+}
+
+.maintenance-work-modal__catalog-item.is-already-added small {
+  color: #64736d;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .maintenance-work-modal__catalog-item span {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -4721,6 +4735,31 @@
   flex: 1;
   background: #e5ece8;
   content: "";
+}
+
+.maintenance-work-modal__manual-toggle {
+  display: inline-flex;
+  margin-top: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #0f615b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 760;
+}
+
+.maintenance-work-modal__manual-toggle:hover {
+  text-decoration: underline;
+}
+
+.maintenance-work-modal__selection-summary {
+  min-height: 20px;
+  margin-top: 18px;
+  color: #64736d;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .maintenance-work-modal__footer {

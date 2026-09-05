@@ -102,9 +102,9 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const [isWorkModalOpen, setIsWorkModalOpen] = useState(false)
   const [workCatalog, setWorkCatalog] = useState<MaintenanceWorkCatalogItem[]>([])
   const [workCatalogQuery, setWorkCatalogQuery] = useState("")
-  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null)
+  const [selectedCatalogIds, setSelectedCatalogIds] = useState<Set<string>>(new Set())
+  const [isManualWorkMode, setIsManualWorkMode] = useState(false)
   const [manualWorkDescription, setManualWorkDescription] = useState("")
-  const [manualWorkNotes, setManualWorkNotes] = useState("")
   const [workNotes, setWorkNotes] = useState<Record<string, string>>({})
   const [savingWorkId, setSavingWorkId] = useState<string | null>(null)
 
@@ -155,43 +155,89 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const filteredWorkCatalog = workCatalog.filter((item) =>
     item.name.toLocaleLowerCase("es-MX").includes(workCatalogQuery.trim().toLocaleLowerCase("es-MX")),
   )
+  const existingCatalogIds = new Set(workItems.flatMap((item) => item.catalogItemId ? [item.catalogItemId] : []))
 
   const openWorkModal = async () => {
     setWorkActionError(null)
     try {
       setWorkCatalog(await getActiveMaintenanceWorkCatalog())
       setWorkCatalogQuery("")
-      setSelectedCatalogId(null)
+      setSelectedCatalogIds(new Set())
+      setIsManualWorkMode(false)
       setManualWorkDescription("")
-      setManualWorkNotes("")
       setIsWorkModalOpen(true)
     } catch (error) {
       setWorkActionError(error instanceof Error ? error.message : "No se pudo cargar el catálogo de trabajos.")
     }
   }
 
-  const addWorkItem = async () => {
-    const catalogItem = workCatalog.find((item) => item.id === selectedCatalogId)
-    const description = catalogItem?.name ?? manualWorkDescription.trim()
-    if (!description) {
-      setWorkActionError("Selecciona un trabajo o escribe una descripción.")
+  const toggleCatalogItem = (catalogItemId: string) => {
+    if (existingCatalogIds.has(catalogItemId)) return
+    setSelectedCatalogIds((current) => {
+      const next = new Set(current)
+      if (next.has(catalogItemId)) next.delete(catalogItemId)
+      else next.add(catalogItemId)
+      return next
+    })
+  }
+
+  const addWorkItems = async () => {
+    if (isManualWorkMode) {
+      const description = manualWorkDescription.trim()
+      if (!description) {
+        setWorkActionError("Escribe una descripción para el trabajo personalizado.")
+        return
+      }
+      setSavingWorkId("new")
+      setWorkActionError(null)
+      try {
+        const created = await createMaintenanceWorkItem(maintenance.id, {
+          description,
+          notes: null,
+          sortOrder: workItems.length,
+          catalogItemId: null,
+        })
+        setWorkItems((current) => [...current, created])
+        setWorkNotes((current) => ({ ...current, [created.id]: "" }))
+        setIsWorkModalOpen(false)
+      } catch (error) {
+        setWorkActionError(error instanceof Error ? error.message : "No se pudo agregar el trabajo.")
+      } finally {
+        setSavingWorkId(null)
+      }
       return
     }
 
+    const catalogItems = workCatalog.filter((item) => selectedCatalogIds.has(item.id) && !existingCatalogIds.has(item.id))
+    if (catalogItems.length === 0) return
+
     setSavingWorkId("new")
     setWorkActionError(null)
+    let createdCount = 0
     try {
-      const created = await createMaintenanceWorkItem(maintenance.id, {
-        description,
-        notes: manualWorkNotes.trim() || null,
-        sortOrder: workItems.length,
-        catalogItemId: catalogItem?.id ?? null,
-      })
-      setWorkItems((current) => [...current, created])
-      setWorkNotes((current) => ({ ...current, [created.id]: created.notes ?? "" }))
+      for (const [index, catalogItem] of catalogItems.entries()) {
+        await createMaintenanceWorkItem(maintenance.id, {
+          description: catalogItem.name,
+          notes: null,
+          sortOrder: workItems.length + index,
+          catalogItemId: catalogItem.id,
+        })
+        createdCount += 1
+      }
+      const refreshedItems = await getMaintenanceWorkItems(maintenance.id)
+      setWorkItems(refreshedItems)
+      setWorkNotes(Object.fromEntries(refreshedItems.map((workItem) => [workItem.id, workItem.notes ?? ""])))
+      setSelectedCatalogIds(new Set())
       setIsWorkModalOpen(false)
     } catch (error) {
-      setWorkActionError(error instanceof Error ? error.message : "No se pudo agregar el trabajo.")
+      const refreshedItems = await getMaintenanceWorkItems(maintenance.id).catch(() => null)
+      if (refreshedItems) {
+        setWorkItems(refreshedItems)
+        setWorkNotes(Object.fromEntries(refreshedItems.map((workItem) => [workItem.id, workItem.notes ?? ""])))
+      }
+      setWorkActionError(createdCount > 0
+        ? `Se agregaron ${createdCount} de ${catalogItems.length} trabajos. Algunos no pudieron agregarse.`
+        : error instanceof Error ? error.message : "No se pudo agregar el trabajo.")
     } finally {
       setSavingWorkId(null)
     }
@@ -398,7 +444,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
                 <h3>Trabajos de la orden</h3>
                 <span>{workItems.length} {workItems.length === 1 ? "trabajo registrado" : "trabajos registrados"}</span>
               </div>
-              {maintenance.status === "open" ? <button className="button button--secondary" onClick={() => void openWorkModal()} type="button"><Plus aria-hidden="true" size={17} />Agregar trabajo</button> : null}
+              {maintenance.status === "open" ? <button className="button button--secondary" onClick={() => void openWorkModal()} type="button"><Plus aria-hidden="true" size={17} />Agregar trabajos</button> : null}
             </header>
             {workActionError ? <div className="form-banner maintenance-report__error">{workActionError}</div> : null}
             {workItems.length > 0 ? (
@@ -412,7 +458,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
                         <ResultIcon aria-hidden="true" className={`maintenance-work-result-icon maintenance-work-result-icon--${resultMeta?.tone ?? "empty"}`} size={20} />
                         <div>
                           <strong>{item.description}</strong>
-                          {hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}
+                          {maintenance.status !== "open" && hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}
                         </div>
                       </div>
                       {maintenance.status === "open" ? (
@@ -435,7 +481,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
                           />
                           <button className="button button--secondary" disabled={savingWorkId === item.id} onClick={() => void updateWorkItem(item, item.result, workNotes[item.id] ?? "")} type="button">Guardar nota</button>
                         </div>
-                      ) : <span className={`maintenance-work-result maintenance-work-result--${resultMeta?.tone ?? "empty"}`}>{resultMeta?.label ?? "Sin resultado"}</span>}
+                      ) : <span className={`maintenance-work-result maintenance-work-result--${resultMeta?.tone ?? "empty"}`}>{resultMeta?.label ?? "Pendiente"}</span>}
                     </article>
                   )
                 })}
@@ -481,7 +527,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
             <header className="maintenance-work-modal__header">
               <div>
                 <span>Trabajos de la orden</span>
-                <h2>Agregar trabajo</h2>
+                <h2>Agregar trabajos</h2>
               </div>
               <button aria-label="Cerrar ventana" className="icon-button" onClick={() => setIsWorkModalOpen(false)} type="button"><X aria-hidden="true" size={19} /></button>
             </header>
@@ -490,21 +536,25 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
               <div className="maintenance-work-modal__search"><Search aria-hidden="true" size={17} /><input autoFocus onChange={(event) => setWorkCatalogQuery(event.target.value)} placeholder="Buscar en el catálogo..." value={workCatalogQuery} /></div>
             </label>
             <div className="maintenance-work-modal__catalog">
-              {filteredWorkCatalog.map((item) => <button className={`maintenance-work-modal__catalog-item ${selectedCatalogId === item.id ? "is-selected" : ""}`} key={item.id} onClick={() => { setSelectedCatalogId(item.id); setManualWorkDescription("") }} type="button"><span>{item.name}</span>{selectedCatalogId === item.id ? <CheckCircle2 aria-hidden="true" size={18} /> : null}</button>)}
+              {filteredWorkCatalog.map((item) => {
+                const isAlreadyAdded = existingCatalogIds.has(item.id)
+                const isSelected = selectedCatalogIds.has(item.id)
+                return <button aria-pressed={isSelected} className={`maintenance-work-modal__catalog-item ${isSelected ? "is-selected" : ""} ${isAlreadyAdded ? "is-already-added" : ""}`} disabled={isAlreadyAdded} key={item.id} onClick={() => toggleCatalogItem(item.id)} type="button"><span>{item.name}</span>{isAlreadyAdded ? <small>Ya agregado</small> : isSelected ? <CheckCircle2 aria-hidden="true" size={18} /> : <Circle aria-hidden="true" size={18} />}</button>
+              })}
               {filteredWorkCatalog.length === 0 ? <p>No se encontraron trabajos en el catálogo.</p> : null}
             </div>
             <div className="maintenance-work-modal__divider"><span>o trabajo personalizado</span></div>
-            <label className="maintenance-work-modal__field">
-              <span>Descripción manual</span>
-              <input onChange={(event) => { setManualWorkDescription(event.target.value); setSelectedCatalogId(null) }} placeholder="Describe el trabajo" value={manualWorkDescription} />
-            </label>
-            <label className="maintenance-work-modal__field">
-              <span>Notas opcionales</span>
-              <textarea onChange={(event) => setManualWorkNotes(event.target.value)} placeholder="Agrega una nota breve" rows={3} value={manualWorkNotes} />
-            </label>
+            <button className="maintenance-work-modal__manual-toggle" onClick={() => { setIsManualWorkMode((current) => !current); setSelectedCatalogIds(new Set()); setWorkActionError(null) }} type="button">+ Trabajo personalizado</button>
+            {isManualWorkMode ? <label className="maintenance-work-modal__field">
+              <span>Descripción del trabajo</span>
+              <input onChange={(event) => setManualWorkDescription(event.target.value)} placeholder="Describe el trabajo" value={manualWorkDescription} />
+            </label> : null}
+            <div className="maintenance-work-modal__selection-summary">
+              {isManualWorkMode ? "Trabajo personalizado" : selectedCatalogIds.size > 0 ? `${selectedCatalogIds.size} ${selectedCatalogIds.size === 1 ? "trabajo seleccionado" : "trabajos seleccionados"}` : "Selecciona uno o más trabajos"}
+            </div>
             <footer className="maintenance-work-modal__footer">
               <button className="button button--secondary" onClick={() => setIsWorkModalOpen(false)} type="button">Cancelar</button>
-              <button className="button button--primary" disabled={savingWorkId === "new" || (!selectedCatalogId && !manualWorkDescription.trim())} onClick={() => void addWorkItem()} type="button"><Plus aria-hidden="true" size={17} />Agregar trabajo</button>
+              <button className="button button--primary" disabled={savingWorkId === "new" || (isManualWorkMode ? !manualWorkDescription.trim() : selectedCatalogIds.size === 0)} onClick={() => void addWorkItems()} type="button"><Plus aria-hidden="true" size={17} />{isManualWorkMode ? "Agregar trabajo" : selectedCatalogIds.size === 0 ? "Agregar trabajos" : `Agregar ${selectedCatalogIds.size} ${selectedCatalogIds.size === 1 ? "trabajo" : "trabajos"}`}</button>
             </footer>
           </section>
         </div>
