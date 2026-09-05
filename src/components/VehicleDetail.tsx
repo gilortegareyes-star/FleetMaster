@@ -391,7 +391,7 @@ export function VehicleDetail({
     <article className="vehicle-detail">
       <button className="fleet-back-button" onClick={onBackToFleet} type="button">
         <ArrowLeft aria-hidden="true" size={17} />
-        Flota
+        Atrás
       </button>
 
       <header className="vehicle-detail__hero">
@@ -451,7 +451,7 @@ export function VehicleDetail({
         </div>
       </header>
 
-      {!isDocumentView ? (
+      {!isDocumentView && activeTab !== "maintenance" ? (
         <div className="vehicle-tabs-row">
           <div className="vehicle-tabs" role="tablist" aria-label="Expediente de unidad">
             {tabs.map((tab) => (
@@ -468,10 +468,10 @@ export function VehicleDetail({
               </button>
             ))}
           </div>
-          {activeTab !== "maintenance" ? <button className="button button--secondary vehicle-tabs-row__action" onClick={onEdit} type="button">
+          <button className="button button--secondary vehicle-tabs-row__action" onClick={onEdit} type="button">
             <Edit3 aria-hidden="true" size={17} />
             Editar unidad
-          </button> : null}
+          </button>
         </div>
       ) : null}
 
