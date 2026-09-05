@@ -5816,6 +5816,12 @@
   box-shadow: 0 20px 55px rgba(16, 24, 40, 0.22);
 }
 
+.maintenance-entry-main-backdrop {
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
 .maintenance-entry-modal__header,
 .maintenance-entry-modal__footer {
   display: flex;
@@ -5924,6 +5930,44 @@
 .maintenance-entry-modal__footer {
   justify-content: flex-end;
   border-top: 1px solid #eaecf0;
+}
+
+.maintenance-entry-modal__new-provider {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: #176b87;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 2px 0;
+}
+
+.maintenance-entry-modal__new-provider:hover {
+  color: #0f4c5d;
+  text-decoration: underline;
+}
+
+.maintenance-entry-modal-backdrop {
+  z-index: 40;
+}
+
+.maintenance-provider-modal {
+  width: min(430px, calc(100vw - 32px));
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(16, 24, 40, 0.22);
+}
+
+.maintenance-provider-modal__body {
+  display: grid;
+  gap: 18px;
+  padding-top: 22px;
 }
 
 @media (max-width: 700px) {

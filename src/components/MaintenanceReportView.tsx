@@ -9,7 +9,9 @@ import { getMaintenanceCostItems, syncMaintenanceCostItems } from "../services/m
 import { closeMaintenanceOrder, updateMaintenanceTotalCost } from "../services/maintenance"
 import { saveMaintenanceEntry } from "../services/maintenanceEntries"
 import { listMaintenanceProviders } from "../services/maintenanceProviders"
+import { createMaintenanceProvider } from "../services/maintenanceProviders"
 import { useOrganization } from "../contexts/OrganizationContext"
+import { useAuth } from "../contexts/AuthContext"
 import type { CloseMaintenanceOrderPayload, MaintenanceRecord } from "../types/maintenance"
 import { maintenanceEntryConditions, maintenanceEntryFuelLevels } from "../types/maintenanceReport"
 import type { MaintenanceEntryCondition, MaintenanceEntryFuelLevel, MaintenanceReport, MaintenanceReportPayload } from "../types/maintenanceReport"
@@ -17,6 +19,7 @@ import type { MaintenanceWorkCatalogItem } from "../types/maintenanceWorkCatalog
 import type { MaintenanceWorkItem, MaintenanceWorkItemDraft, MaintenanceWorkResult } from "../types/maintenanceWorkItem"
 import type { MaintenancePart, MaintenancePartDraft } from "../types/maintenancePart"
 import type { MaintenanceCostItem, MaintenanceCostItemDraft } from "../types/maintenanceCostItem"
+import { maintenanceProviderTypes, type MaintenanceProviderType } from "../types/maintenanceProvider"
 import type { Vehicle } from "../types/vehicle"
 import { formatCurrency, formatDate, formatMileage } from "../utils/formatters"
 import { calculateCostItemsTotal, calculateMaintenanceCostTotal, calculatePartSubtotal, calculatePartsTotal } from "../utils/maintenanceCosts"
@@ -71,6 +74,14 @@ const conditionLabels: Record<MaintenanceEntryCondition, string> = {
   other: "Otro",
 }
 
+const providerTypeLabels: Record<MaintenanceProviderType, string> = {
+  agency: "Agencia",
+  workshop: "Taller",
+  tire_shop: "Llantera",
+  specialist: "Especialista",
+  other: "Otro",
+}
+
 function ReportField({ label, value }: { label: string; value: string }) {
   return (
     <div className="maintenance-report__field">
@@ -108,11 +119,14 @@ interface MaintenanceEntryModalProps {
   providers: Array<{ id: string; name: string; isActive: boolean }>
   isSaving: boolean
   error: string | null
+  selectedProviderId: string | null
+  canCreateProvider: boolean
+  onOpenQuickProvider: () => void
   onClose: () => void
   onSubmit: (payload: { maintenanceId: string; entryAt: string; entryMileage: number; providerId: string; fuelLevel: MaintenanceEntryFuelLevel; conditions: MaintenanceEntryCondition[]; observations: string | null }) => void
 }
 
-function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error, onClose, onSubmit }: MaintenanceEntryModalProps) {
+function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error, selectedProviderId, canCreateProvider, onOpenQuickProvider, onClose, onSubmit }: MaintenanceEntryModalProps) {
   const existingConditions = report?.receptionConditions?.conditions ?? []
   const [entryAt, setEntryAt] = useState(toDateTimeInput(report?.entryAt ?? null))
   const [entryMileage, setEntryMileage] = useState(report?.entryMileage === null || report?.entryMileage === undefined ? "" : String(report.entryMileage))
@@ -121,6 +135,10 @@ function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error
   const [conditions, setConditions] = useState<MaintenanceEntryCondition[]>(existingConditions.length > 0 ? existingConditions : ["no_apparent_damage"])
   const [observations, setObservations] = useState(report?.receptionConditions?.observations ?? "")
   const [localError, setLocalError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (selectedProviderId) setProviderId(selectedProviderId)
+  }, [selectedProviderId])
 
   const toggleCondition = (condition: MaintenanceEntryCondition) => {
     setConditions((current) => {
@@ -152,7 +170,7 @@ function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error
   }
 
   return (
-    <div aria-modal="true" className="modal-backdrop" role="dialog">
+    <div aria-modal="true" className="modal-backdrop maintenance-entry-main-backdrop" role="dialog">
       <section className="maintenance-entry-modal">
         <header className="maintenance-entry-modal__header">
           <div><span>Registro de ingreso</span><h2>{report?.entryAt ? "Editar ingreso" : "Registrar ingreso"}</h2></div>
@@ -163,7 +181,7 @@ function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error
             <label><span>Fecha y hora de ingreso *</span><input onChange={(event) => setEntryAt(event.target.value)} type="datetime-local" value={entryAt} /></label>
             <label><span>Kilometraje de entrada *</span><input min="0" onChange={(event) => setEntryMileage(event.target.value)} type="number" value={entryMileage} /></label>
           </div>
-          <label><span>Taller / proveedor *</span><select onChange={(event) => setProviderId(event.target.value)} value={providerId}><option value="">Selecciona un proveedor</option>{providers.map((provider) => <option disabled={!provider.isActive && provider.id !== maintenance.providerId} key={provider.id} value={provider.id}>{provider.name}{provider.isActive ? "" : " (inactivo)"}</option>)}</select></label>
+          <label><span>Taller / proveedor *</span><select onChange={(event) => setProviderId(event.target.value)} value={providerId}><option value="">Selecciona un proveedor</option>{providers.map((provider) => <option disabled={!provider.isActive && provider.id !== maintenance.providerId} key={provider.id} value={provider.id}>{provider.name}{provider.isActive ? "" : " (inactivo)"}</option>)}</select>{canCreateProvider ? <button className="maintenance-entry-modal__new-provider" onClick={onOpenQuickProvider} type="button"><Plus aria-hidden="true" size={15} />Nuevo taller o proveedor</button> : null}</label>
           <fieldset><legend>Nivel de combustible *</legend><div className="maintenance-entry-modal__choices">{maintenanceEntryFuelLevels.map((level) => <button aria-pressed={fuelLevel === level} className={fuelLevel === level ? "is-selected" : ""} key={level} onClick={() => setFuelLevel(level)} type="button">{fuelLevelLabels[level]}</button>)}</div></fieldset>
           <fieldset><legend>Condiciones de recepción *</legend><div className="maintenance-entry-modal__conditions">{maintenanceEntryConditions.map((condition) => <label key={condition}><input checked={conditions.includes(condition)} onChange={() => toggleCondition(condition)} type="checkbox" /><span>{conditionLabels[condition]}</span></label>)}</div></fieldset>
           <label><span>Observaciones {conditions.includes("other") ? "*" : "(opcional)"}</span><textarea onChange={(event) => setObservations(event.target.value)} placeholder="Describe cualquier detalle relevante..." rows={3} value={observations} /></label>
@@ -175,8 +193,28 @@ function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error
   )
 }
 
+function QuickProviderModal({ isSaving, error, onClose, onSubmit }: { isSaving: boolean; error: string | null; onClose: () => void; onSubmit: (name: string, type: MaintenanceProviderType) => void }) {
+  const [name, setName] = useState("")
+  const [type, setType] = useState<MaintenanceProviderType>("agency")
+
+  return (
+    <div aria-modal="true" className="modal-backdrop maintenance-entry-modal-backdrop" role="dialog">
+      <section className="maintenance-provider-modal">
+        <header className="maintenance-entry-modal__header"><div><span>Registro de ingreso</span><h2>Nuevo taller o proveedor</h2></div><button aria-label="Cerrar ventana" className="icon-button" onClick={onClose} type="button"><X aria-hidden="true" size={19} /></button></header>
+        <form className="maintenance-provider-modal__body" onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSubmit(name, type) }}>
+          <label><span>Nombre *</span><input autoFocus onChange={(event) => setName(event.target.value)} required value={name} /></label>
+          <label><span>Tipo *</span><select onChange={(event) => setType(event.target.value as MaintenanceProviderType)} value={type}>{maintenanceProviderTypes.map((providerType) => <option key={providerType} value={providerType}>{providerTypeLabels[providerType]}</option>)}</select></label>
+          {error ? <div className="form-banner maintenance-report__error">{error}</div> : null}
+          <footer className="maintenance-entry-modal__footer"><button className="button button--secondary" onClick={onClose} type="button">Cancelar</button><button className="button button--primary" disabled={isSaving} type="submit">{isSaving ? "Guardando..." : "Guardar proveedor"}</button></footer>
+        </form>
+      </section>
+    </div>
+  )
+}
+
 export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintenanceChanged }: MaintenanceReportViewProps) {
   const { activeOrganization } = useOrganization()
+  const { isFleetmasterAdmin, organizationAccess } = useAuth()
   const [report, setReport] = useState<MaintenanceReport | null>(null)
   const [workItems, setWorkItems] = useState<MaintenanceWorkItem[]>([])
   const [parts, setParts] = useState<MaintenancePart[]>([])
@@ -202,6 +240,10 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const [entryProviders, setEntryProviders] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
   const [isEntrySaving, setIsEntrySaving] = useState(false)
   const [entryError, setEntryError] = useState<string | null>(null)
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false)
+  const [isProviderSaving, setIsProviderSaving] = useState(false)
+  const [providerError, setProviderError] = useState<string | null>(null)
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -270,6 +312,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
 
   const openEntryModal = async () => {
     setEntryError(null)
+    setSelectedProviderId(null)
     try {
       if (!activeOrganization?.id) throw new Error("No hay una organización activa disponible.")
       const providers = await listMaintenanceProviders(activeOrganization.id)
@@ -277,6 +320,24 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       setIsEntryModalOpen(true)
     } catch (error) {
       setEntryError(error instanceof Error ? error.message : "No se pudo cargar el catálogo de proveedores.")
+    }
+  }
+
+  const canCreateProvider = isFleetmasterAdmin || organizationAccess?.role === "manager"
+
+  const handleCreateProvider = async (name: string, type: MaintenanceProviderType) => {
+    setIsProviderSaving(true)
+    setProviderError(null)
+    try {
+      if (!activeOrganization?.id) throw new Error("No hay una organización activa disponible.")
+      const provider = await createMaintenanceProvider(activeOrganization.id, name, type)
+      setEntryProviders((current) => [provider, ...current])
+      setSelectedProviderId(provider.id)
+      setIsProviderModalOpen(false)
+    } catch (error) {
+      setProviderError(error instanceof Error ? error.message : "No se pudo crear el proveedor.")
+    } finally {
+      setIsProviderSaving(false)
     }
   }
 
@@ -709,7 +770,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
         </div>
       ) : null}
 
-      {isEntryModalOpen ? <MaintenanceEntryModal maintenance={maintenance} report={report} providers={entryProviders} isSaving={isEntrySaving} error={entryError} onClose={() => setIsEntryModalOpen(false)} onSubmit={(payload) => void handleSaveEntry(payload)} /> : null}
+      {isEntryModalOpen ? <MaintenanceEntryModal canCreateProvider={canCreateProvider} maintenance={maintenance} report={report} providers={entryProviders} selectedProviderId={selectedProviderId} isSaving={isEntrySaving} error={entryError} onOpenQuickProvider={() => { setProviderError(null); setIsProviderModalOpen(true) }} onClose={() => setIsEntryModalOpen(false)} onSubmit={(payload) => void handleSaveEntry(payload)} /> : null}
+      {isProviderModalOpen ? <QuickProviderModal error={providerError} isSaving={isProviderSaving} onClose={() => setIsProviderModalOpen(false)} onSubmit={(name, type) => void handleCreateProvider(name, type)} /> : null}
 
       {isFormOpen ? (
         <MaintenanceReportForm
