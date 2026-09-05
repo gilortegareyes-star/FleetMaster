@@ -217,8 +217,23 @@ export const createVehicleDocument = async (payload: VehicleDocumentPayload) => 
     validateVehicleDocumentFile(payload.file)
 
     const extension = getFileExtension(payload.file)
-    const storagePath = `${payload.vehicleId}/${storageFolderByDocumentType[payload.documentType]}/${crypto.randomUUID()}.${extension}`
     const supabase = getSupabaseClient()
+    const { data: vehicle, error: vehicleError } = await supabase
+      .from("vehicles")
+      .select("organization_id")
+      .eq("id", payload.vehicleId)
+      .single()
+
+    if (vehicleError) {
+      throw vehicleError
+    }
+
+    const organizationId = (vehicle as { organization_id?: string | null } | null)?.organization_id
+    if (!organizationId) {
+      throw new Error("vehicle organization unavailable")
+    }
+
+    const storagePath = `${organizationId}/${payload.vehicleId}/${storageFolderByDocumentType[payload.documentType]}/${crypto.randomUUID()}.${extension}`
 
     const { error: uploadError } = await supabase.storage
       .from(vehicleDocumentsBucket)
