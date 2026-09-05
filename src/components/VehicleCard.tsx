@@ -1,16 +1,17 @@
 import { ArrowRight, Gauge, TriangleAlert } from "lucide-react"
 import { StatusBadge } from "./StatusBadge"
+import type { DocumentAlert } from "../services/vehicleDocuments"
 import type { Vehicle } from "../types/vehicle"
 import { displayValue, formatMileage } from "../utils/formatters"
 
 interface VehicleCardProps {
-  hasPendingDocuments: boolean
+  documentAlerts: DocumentAlert[]
   vehicle: Vehicle
   isSelected: boolean
   onSelect: () => void
 }
 
-export function VehicleCard({ hasPendingDocuments, vehicle, isSelected, onSelect }: VehicleCardProps) {
+export function VehicleCard({ documentAlerts, vehicle, isSelected, onSelect }: VehicleCardProps) {
   const vehicleName = [vehicle.brand, vehicle.model].filter(Boolean).join(" ")
   const vehicleSpec = [vehicle.version, String(vehicle.year)].filter(Boolean).join(" · ")
   const plate = vehicle.stateLicensePlate ?? vehicle.licensePlate
@@ -24,11 +25,11 @@ export function VehicleCard({ hasPendingDocuments, vehicle, isSelected, onSelect
       <div className="vehicle-card__header">
         <div className="vehicle-card__code-group">
           <strong className="vehicle-card__code">{vehicle.internalCode}</strong>
-          {hasPendingDocuments ? (
+          {documentAlerts.length > 0 ? (
             <span
-              aria-label="Documentación obligatoria pendiente"
+              aria-label={`Documentación que requiere atención: ${documentAlerts.map((alert) => alert.label).join("; ")}`}
               className="vehicle-card__document-warning"
-              title="Documentación obligatoria pendiente"
+              title={`Documentación que requiere atención\n• ${documentAlerts.map((alert) => alert.label).join("\n• ")}`}
             >
               <TriangleAlert aria-hidden="true" fill="none" size={18} strokeWidth={2} />
             </span>

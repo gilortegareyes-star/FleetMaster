@@ -95,6 +95,34 @@ const friendlyDocumentError = (message: string) => {
   return "No se pudo completar la operación documental. Intenta de nuevo."
 }
 
+export interface DocumentAlert {
+  code: "insurance_missing" | "insurance_expired" | "insurance_expiring" | "registration_missing" | "registration_expired" | "registration_expiring"
+  label: string
+}
+
+const formatAlertDate = (value: string | null) => {
+  if (!value) return null
+  const parsed = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return null
+  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(parsed)
+}
+
+const documentAlert = (kind: "insurance" | "registration", document: VehicleDocument | null, label: string): DocumentAlert | null => {
+  if (!document) {
+    return { code: `${kind}_missing`, label: `${label} pendiente de subir` } as DocumentAlert
+  }
+
+  const status = getDocumentStatus(document)
+  const date = formatAlertDate(document.validUntil)
+  if (status.label === "Vencido") {
+    return { code: `${kind}_expired`, label: `${label} vencido${date ? ` el ${date}` : ""}` } as DocumentAlert
+  }
+  if (status.label === "Próximo a vencer") {
+    return { code: `${kind}_expiring`, label: `${label} vence${date ? ` el ${date}` : ""}` } as DocumentAlert
+  }
+  return null
+}
+
 const storageFolderByDocumentType: Record<VehicleDocumentType, string> = {
   insurance_policy: "insurance_policy",
   registration_card: "registration_card",
@@ -149,8 +177,13 @@ export const getCurrentVehicleDocuments = async (vehicleId: string) => {
 }
 
 export const getVehiclesWithPendingRequiredDocuments = async (vehicles: Vehicle[]) => {
+  const alertsByVehicle = await getVehicleDocumentAlerts(vehicles)
+  return new Set([...alertsByVehicle.entries()].filter(([, alerts]) => alerts.length > 0).map(([vehicleId]) => vehicleId))
+}
+
+export const getVehicleDocumentAlerts = async (vehicles: Vehicle[]) => {
   if (vehicles.length === 0) {
-    return new Set<string>()
+    return new Map<string, DocumentAlert[]>()
   }
 
   try {
@@ -166,7 +199,7 @@ export const getVehiclesWithPendingRequiredDocuments = async (vehicles: Vehicle[
       throw error
     }
 
-    const completeDocumentsByVehicle = new Map<string, Set<string>>()
+    const documentsByVehicle = new Map<string, VehicleDocument[]>()
 
     for (const row of (data ?? []) as VehicleDocumentRow[]) {
       const document = toVehicleDocument(row)
@@ -174,39 +207,28 @@ export const getVehiclesWithPendingRequiredDocuments = async (vehicles: Vehicle[
         continue
       }
 
-      const status = getDocumentStatus(document)
-      const isComplete =
-        document.documentType === "insurance_policy"
-          ? ["Vigente", "Próximo a vencer"].includes(status.label)
-          : status.label !== "Vencido"
-
-      if (isComplete) {
-        const completeDocuments = completeDocumentsByVehicle.get(row.vehicle_id) ?? new Set()
-        completeDocuments.add(
-          document.documentType === "insurance_policy"
-            ? "insurance_policy"
-            : document.circulationType ?? "legacy",
-        )
-        completeDocumentsByVehicle.set(row.vehicle_id, completeDocuments)
-      }
+      const documents = documentsByVehicle.get(row.vehicle_id) ?? []
+      documents.push(document)
+      documentsByVehicle.set(row.vehicle_id, documents)
     }
 
-    return new Set(
-      vehicles
-        .filter((vehicle) => {
-          const insuranceComplete = completeDocumentsByVehicle.get(vehicle.id)?.has("insurance_policy") ?? false
-          const requiredCirculationTypes = [
-            vehicle.stateLicensePlate?.trim() ? "state" : null,
-            vehicle.federalLicensePlate?.trim() ? "federal" : null,
-          ].filter((type): type is "state" | "federal" => type !== null)
-          const registrationComplete =
-            requiredCirculationTypes.length > 0 &&
-            requiredCirculationTypes.every((type) => completeDocumentsByVehicle.get(vehicle.id)?.has(type) ?? false)
+    return new Map(vehicles.map((vehicle) => {
+      const documents = documentsByVehicle.get(vehicle.id) ?? []
+      const insurance = documents.find((document) => document.documentType === "insurance_policy") ?? null
+      const alerts = documentAlert("insurance", insurance, "Póliza de seguro")
+      const registrationTypes = [
+        vehicle.stateLicensePlate?.trim() ? "state" : null,
+        vehicle.federalLicensePlate?.trim() ? "federal" : null,
+      ].filter((type): type is "state" | "federal" => type !== null)
 
-          return !insuranceComplete || !registrationComplete
-        })
-        .map((vehicle) => vehicle.id),
-    )
+      const registrationAlerts = registrationTypes.map((type) => {
+        const registration = documents.find((document) => document.documentType === "registration_card" && document.circulationType === type) ?? null
+        const typeLabel = registrationTypes.length > 1 ? `Tarjeta de circulación ${type === "state" ? "estatal" : "federal"}` : "Tarjeta de circulación"
+        return documentAlert("registration", registration, typeLabel)
+      }).filter((item): item is DocumentAlert => item !== null)
+
+      return [vehicle.id, [...(alerts ? [alerts] : []), ...registrationAlerts]] as [string, DocumentAlert[]]
+    }))
   } catch (error) {
     throw new Error(friendlyDocumentError(error instanceof Error ? error.message : String(error)))
   }

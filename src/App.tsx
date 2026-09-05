@@ -4,7 +4,7 @@ import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleDetail } from "./components/VehicleDetail"
 import { VehicleForm } from "./components/VehicleForm"
-import { getVehiclesWithPendingRequiredDocuments } from "./services/vehicleDocuments"
+import { getVehicleDocumentAlerts } from "./services/vehicleDocuments"
 import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
 import { isSupabaseConfigured } from "./services/supabase"
 import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
@@ -48,7 +48,7 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
-  const [pendingDocumentVehicleIds, setPendingDocumentVehicleIds] = useState<Set<string> | null>(null)
+  const [documentAlertsByVehicle, setDocumentAlertsByVehicle] = useState<Map<string, import("./services/vehicleDocuments").DocumentAlert[]> | null>(null)
 
   const storeNavigation = (
     view: ActiveView,
@@ -191,7 +191,7 @@ function App() {
     setLoadError(null)
     setSaveError(null)
     setFeedback(null)
-    setPendingDocumentVehicleIds(null)
+    setDocumentAlertsByVehicle(null)
   }, [activeOrganization?.id])
 
   const vehicleIdsKey = useMemo(() => vehicles.map((vehicle) => vehicle.id).join(","), [vehicles])
@@ -200,10 +200,10 @@ function App() {
     let isActive = true
     const vehicleIds = vehicleIdsKey ? vehicleIdsKey.split(",") : []
 
-    setPendingDocumentVehicleIds(null)
+    setDocumentAlertsByVehicle(null)
 
     if (vehicleIds.length === 0) {
-      setPendingDocumentVehicleIds(new Set())
+      setDocumentAlertsByVehicle(new Map())
       return () => {
         isActive = false
       }
@@ -211,13 +211,13 @@ function App() {
 
     const loadDocumentStatus = async () => {
       try {
-        const pendingVehicleIds = await getVehiclesWithPendingRequiredDocuments(vehicles)
+        const alertsByVehicle = await getVehicleDocumentAlerts(vehicles)
         if (isActive) {
-          setPendingDocumentVehicleIds(pendingVehicleIds)
+          setDocumentAlertsByVehicle(alertsByVehicle)
         }
       } catch {
         if (isActive) {
-          setPendingDocumentVehicleIds(new Set())
+          setDocumentAlertsByVehicle(new Map())
         }
       }
     }
@@ -537,7 +537,7 @@ function App() {
                   <div className="vehicles-list">
                     {filteredVehicles.map((vehicle) => (
                       <VehicleCard
-                        hasPendingDocuments={pendingDocumentVehicleIds?.has(vehicle.id) ?? false}
+                        documentAlerts={documentAlertsByVehicle?.get(vehicle.id) ?? []}
                         isSelected={selectedVehicleId === vehicle.id}
                         key={vehicle.id}
                         onSelect={() => {
