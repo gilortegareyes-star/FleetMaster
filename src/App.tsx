@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound } from "lucide-react"
+import { ArrowLeft, CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleDetail } from "./components/VehicleDetail"
@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from "./services/supabase"
 import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
 import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
+import { useOrganization } from "./contexts/OrganizationContext"
 
 type ActiveView = "inicio" | "unidades" | "administracion"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
@@ -23,6 +24,7 @@ const initialFilters: VehicleFilters = {
 
 function App() {
   const { signOut, user } = useAuth()
+  const { activeOrganization, clearActiveOrganization } = useOrganization()
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
@@ -37,9 +39,17 @@ function App() {
   const [pendingDocumentVehicleIds, setPendingDocumentVehicleIds] = useState<Set<string> | null>(null)
 
   useEffect(() => {
+    let isActive = true
     const loadVehicles = async () => {
       setIsLoading(true)
       setLoadError(null)
+
+      if (!activeOrganization) {
+        setVehicles([])
+        setSelectedVehicleId(null)
+        setIsLoading(false)
+        return
+      }
 
       if (!isSupabaseConfigured()) {
         setVehicles([])
@@ -49,18 +59,35 @@ function App() {
       }
 
       try {
-        const items = await listVehicles()
+        const items = await listVehicles(activeOrganization.id)
+        if (!isActive) return
         setVehicles(items)
         setSelectedVehicleId((current) => current ?? items[0]?.id ?? null)
       } catch (error) {
+        if (!isActive) return
         setLoadError(error instanceof Error ? error.message : "No se pudieron cargar las unidades.")
       } finally {
-        setIsLoading(false)
+        if (isActive) setIsLoading(false)
       }
     }
 
     void loadVehicles()
-  }, [])
+    return () => {
+      isActive = false
+    }
+  }, [activeOrganization?.id])
+
+  useEffect(() => {
+    setVehicles([])
+    setSelectedVehicleId(null)
+    setIsVehicleCenterOpen(false)
+    setFilters(initialFilters)
+    setFormState(null)
+    setLoadError(null)
+    setSaveError(null)
+    setFeedback(null)
+    setPendingDocumentVehicleIds(null)
+  }, [activeOrganization?.id])
 
   const vehicleIdsKey = useMemo(() => vehicles.map((vehicle) => vehicle.id).join(","), [vehicles])
 
@@ -154,7 +181,11 @@ function App() {
     setSaveError(null)
 
     try {
-      const createdVehicle = await createVehicle(payload)
+      if (!activeOrganization) {
+        throw new Error("Entra a una empresa activa para registrar una unidad.")
+      }
+
+      const createdVehicle = await createVehicle(payload, activeOrganization.id)
       setVehicles((current) => [...current, createdVehicle].sort((a, b) => a.internalCode.localeCompare(b.internalCode)))
       setSelectedVehicleId(createdVehicle.id)
       setIsVehicleCenterOpen(true)
@@ -258,8 +289,9 @@ function App() {
       </aside>
 
       <main className="content-shell">
+        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { setActiveView("administracion"); clearActiveOrganization() }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" ? (
-          <AdminOrganizationsPage onFeedback={setFeedback} />
+          <AdminOrganizationsPage onEnterOrganization={() => setActiveView("unidades")} onFeedback={setFeedback} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>

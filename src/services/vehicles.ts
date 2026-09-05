@@ -94,15 +94,30 @@ const friendlyDatabaseError = (message: string) => {
     return "Configura la conexión a Supabase para guardar unidades."
   }
 
+  if (normalized.includes("organization context required")) {
+    return "Entra a una empresa activa para registrar una unidad."
+  }
+
+  if (normalized.includes("organization not found or inactive")) {
+    return "La empresa seleccionada no está disponible para operar."
+  }
+
+  if (normalized.includes("active organization membership required")) {
+    return "Tu cuenta no tiene una empresa activa asignada."
+  }
+
+  if (normalized.includes("organization context is not allowed")) {
+    return "La empresa debe determinarse desde tu acceso autorizado."
+  }
+
   return "No se pudo completar la operación. Intenta de nuevo."
 }
 
-export const listVehicles = async () => {
+export const listVehicles = async (organizationId?: string) => {
   try {
-    const { data, error } = await getSupabaseClient()
-      .from("vehicles")
-      .select("*")
-      .order("internal_code", { ascending: true })
+    let query = getSupabaseClient().from("vehicles").select("*")
+    if (organizationId) query = query.eq("organization_id", organizationId)
+    const { data, error } = await query.order("internal_code", { ascending: true })
 
     if (error) {
       throw error
@@ -114,13 +129,33 @@ export const listVehicles = async () => {
   }
 }
 
-export const createVehicle = async (payload: VehiclePayload) => {
+export const createVehicle = async (payload: VehiclePayload, organizationId?: string) => {
   try {
-    const { data, error } = await getSupabaseClient()
-      .from("vehicles")
-      .insert(toVehicleRow(payload))
-      .select("*")
-      .single()
+    const row = toVehicleRow(payload)
+    const { data, error } = await getSupabaseClient().rpc("create_vehicle", {
+      p_organization_id: organizationId ?? null,
+      p_internal_code: row.internal_code,
+      p_brand: row.brand,
+      p_model: row.model,
+      p_version: row.version,
+      p_year: row.year,
+      p_vin: row.vin,
+      p_license_plate: row.license_plate ?? null,
+      p_engine_number: row.engine_number,
+      p_color: row.color,
+      p_fuel_type: row.fuel_type ?? null,
+      p_fuel_types: row.fuel_types,
+      p_state_license_plate: row.state_license_plate,
+      p_federal_license_plate: row.federal_license_plate,
+      p_vehicle_type: row.vehicle_type,
+      p_transmission_type: row.transmission_type,
+      p_load_capacity_kg: row.load_capacity_kg,
+      p_tank_capacity_liters: row.tank_capacity_liters,
+      p_acquisition_date: row.acquisition_date,
+      p_acquisition_price: row.acquisition_price,
+      p_current_mileage: row.current_mileage,
+      p_status: row.status,
+    })
 
     if (error) {
       throw error

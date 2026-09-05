@@ -715,6 +715,27 @@
   padding: 28px;
 }
 
+.active-organization-bar {
+  width: min(1460px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 auto 18px;
+  color: #63716c;
+  font-size: 0.86rem;
+}
+
+.active-organization-bar strong {
+  color: #17211d;
+}
+
+.active-organization-bar .button {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.82rem;
+}
+
 .units-page,
 .unit-center-page,
 .home-panel {
@@ -4207,6 +4228,10 @@
 
   .content-shell {
     padding: 18px;
+  }
+
+  .active-organization-bar {
+    align-items: flex-start;
   }
 
   .page-header,

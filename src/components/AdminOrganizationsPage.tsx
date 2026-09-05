@@ -2,11 +2,12 @@ import { useEffect, useState, type FormEvent } from "react"
 import { ArrowLeft, Ban, Building2, Clock3, Edit3, Mail, PauseCircle, PlayCircle, Plus, RefreshCw, UserPlus, UserRound, UserX, Users } from "lucide-react"
 import { createOrganization, disableOrganizationMembership, listOrganizationUsers, listOrganizations, revokeOrganizationInvitation, sendManagerInvitation, setOrganizationStatus, updateOrganization } from "../services/organizations"
 import type { CreateOrganizationInput, OrganizationStatus, OrganizationSummary, OrganizationUserRecord } from "../types/organization"
+import { useOrganization } from "../contexts/OrganizationContext"
 
 type AdminTab = "summary" | "users" | "tickets"
 const formatDate = (value: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(new Date(value))
 
-export function AdminOrganizationsPage({ onFeedback }: { onFeedback: (message: string) => void }) {
+export function AdminOrganizationsPage({ onFeedback, onEnterOrganization }: { onFeedback: (message: string) => void; onEnterOrganization: () => void }) {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([])
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<AdminTab>("summary")
@@ -15,6 +16,7 @@ export function AdminOrganizationsPage({ onFeedback }: { onFeedback: (message: s
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingOrganization, setEditingOrganization] = useState<OrganizationSummary | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const { setActiveOrganization } = useOrganization()
 
   const loadOrganizations = async () => {
     setIsLoading(true); setLoadError(null)
@@ -50,7 +52,7 @@ export function AdminOrganizationsPage({ onFeedback }: { onFeedback: (message: s
 
   if (selectedOrganization) return <section className="admin-page">
     <button className="summary-back-button" onClick={() => setSelectedOrganizationId(null)} type="button"><ArrowLeft aria-hidden="true" size={18} /> Empresas</button>
-    <header className="admin-detail-header"><div><p>Empresa</p><h1>{selectedOrganization.name}</h1><span>Alta: {formatDate(selectedOrganization.createdAt)}</span></div><div className="admin-detail-actions"><span className={`organization-status organization-status--${selectedOrganization.status}`}>{selectedOrganization.status === "active" ? "Activa" : "Suspendida"}</span><button className="button button--secondary" onClick={openEditForm} type="button"><Edit3 aria-hidden="true" size={17} /> Editar</button><button className="button button--secondary" disabled={isSaving} onClick={() => void handleStatusChange()} type="button">{selectedOrganization.status === "active" ? <PauseCircle aria-hidden="true" size={17} /> : <PlayCircle aria-hidden="true" size={17} />}{selectedOrganization.status === "active" ? "Suspender" : "Reactivar"}</button></div></header>
+    <header className="admin-detail-header"><div><p>Empresa</p><h1>{selectedOrganization.name}</h1><span>Alta: {formatDate(selectedOrganization.createdAt)}</span></div><div className="admin-detail-actions"><span className={`organization-status organization-status--${selectedOrganization.status}`}>{selectedOrganization.status === "active" ? "Activa" : "Suspendida"}</span><button className="button button--primary" disabled={selectedOrganization.status !== "active"} onClick={() => { setActiveOrganization({ id: selectedOrganization.id, name: selectedOrganization.name, status: selectedOrganization.status }); onEnterOrganization() }} type="button">Administrar empresa</button><button className="button button--secondary" onClick={openEditForm} type="button"><Edit3 aria-hidden="true" size={17} /> Editar</button><button className="button button--secondary" disabled={isSaving} onClick={() => void handleStatusChange()} type="button">{selectedOrganization.status === "active" ? <PauseCircle aria-hidden="true" size={17} /> : <PlayCircle aria-hidden="true" size={17} />}{selectedOrganization.status === "active" ? "Suspender" : "Reactivar"}</button></div></header>
     <nav className="admin-tabs" aria-label="Secciones de empresa">{(["summary", "users", "tickets"] as const).map((tab) => <button className={activeTab === tab ? "admin-tab admin-tab--active" : "admin-tab"} key={tab} onClick={() => setActiveTab(tab)} type="button">{tab === "summary" ? "Resumen" : tab === "users" ? "Usuarios" : "Tickets"}</button>)}</nav>
     {activeTab === "summary" ? <section className="organization-summary-grid"><div className="organization-summary-card"><span>Usuarios utilizados</span><strong>{selectedOrganization.seatsUsed} de {selectedOrganization.seatLimit}</strong><small>Plazas ocupadas</small></div><div className="organization-summary-card"><span>Disponibles</span><strong>{selectedOrganization.seatsAvailable}</strong><small>Plazas restantes</small></div><div className="organization-summary-card"><span>Estado</span><strong>{selectedOrganization.status === "active" ? "Activa" : "Suspendida"}</strong><small>{selectedOrganization.suspendedAt ? `Desde ${formatDate(selectedOrganization.suspendedAt)}` : "Operación habilitada"}</small></div></section> : activeTab === "users" ? <OrganizationUsers organization={selectedOrganization} isSaving={isSaving} onFeedback={onFeedback} onRefreshOrganizations={loadOrganizations} onSavingChange={setIsSaving} /> : <div className="admin-coming-soon"><Building2 aria-hidden="true" size={28} /><strong>Tickets</strong><span>Esta sección estará disponible en una siguiente fase.</span></div>}
     {isFormOpen ? <OrganizationForm editingOrganization={editingOrganization} isSaving={isSaving} onClose={() => setIsFormOpen(false)} onSubmit={handleSave} /> : null}
