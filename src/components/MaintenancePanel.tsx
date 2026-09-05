@@ -1,4 +1,4 @@
-import { CalendarDays, Edit3, FileText, Plus, Wrench } from "lucide-react"
+import { ArrowRight, CalendarDays, Edit3, FileText, Plus, Wrench } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { MaintenanceForm } from "./MaintenanceForm"
 import { NewMaintenanceOrderForm } from "./NewMaintenanceOrderForm"
@@ -79,6 +79,7 @@ export function MaintenancePanel({
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [historyQuery, setHistoryQuery] = useState("")
 
   useEffect(() => {
     const loadMaintenance = async () => {
@@ -128,6 +129,15 @@ export function MaintenancePanel({
       return dateComparison || b.createdAt.localeCompare(a.createdAt)
     })
   }, [records])
+
+  const filteredRecords = useMemo(() => {
+    const query = historyQuery.trim().toLowerCase()
+    if (!query) return sortedRecords
+
+    return sortedRecords.filter((record) =>
+      [record.folio, record.maintenanceType, record.provider ?? ""].some((value) => value.toLowerCase().includes(query)),
+    )
+  }, [historyQuery, sortedRecords])
 
   const nextServiceSummary = selectedRecord
     ? [
@@ -250,20 +260,21 @@ export function MaintenancePanel({
     <section className="maintenance-module">
       <header className="maintenance-header">
         <div>
-          <p>Historial</p>
           <h3>Mantenimientos</h3>
-          <span>Historial y servicios realizados a esta unidad</span>
+          <span>Órdenes, historial y servicios de esta unidad</span>
         </div>
-        <div className="maintenance-header__actions">
-          <button className="button button--primary" disabled={Boolean(openRecord)} onClick={openOrderForm} type="button">
-            <Plus aria-hidden="true" size={17} />
-            Nueva orden de mantenimiento
-          </button>
-          <button className="button button--secondary" onClick={openCreateForm} type="button">
-            <Wrench aria-hidden="true" size={17} />
-            Registrar mantenimiento
-          </button>
-        </div>
+        {!isLoading && !loadError && !openRecord ? (
+          <div className="maintenance-header__actions">
+            <button className="button button--primary" onClick={openOrderForm} type="button">
+              <Plus aria-hidden="true" size={17} />
+              Nueva orden de mantenimiento
+            </button>
+            <button className="button button--secondary" onClick={openCreateForm} type="button">
+              <Wrench aria-hidden="true" size={17} />
+              Registrar mantenimiento
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {isLoading ? (
@@ -273,12 +284,6 @@ export function MaintenancePanel({
           <strong>No se pudo cargar el historial</strong>
           <span>{loadError}</span>
         </div>
-      ) : records.length === 0 ? (
-        <div className="empty-state">
-          <Wrench aria-hidden="true" size={34} />
-          <strong>Esta unidad todavía no tiene mantenimientos registrados.</strong>
-          <span>El historial de mantenimientos de esta unidad aparecerá aquí.</span>
-        </div>
       ) : (
         <>
           {openRecord ? (
@@ -287,48 +292,57 @@ export function MaintenancePanel({
                 <div>
                   <span>Mantenimiento en curso</span>
                   <h4>{openRecord.folio}</h4>
+                  <p>{openRecord.maintenanceType}</p>
                 </div>
                 <span className="maintenance-open-order__status">En curso</span>
               </header>
               <div className="maintenance-open-order__details">
-                <div><strong>{openRecord.maintenanceType}</strong><span>Tipo de mantenimiento</span></div>
-                <div><strong>{openReport?.entryAt ? formatDateTime(openReport.entryAt) : "—"}</strong><span>Ingresó</span></div>
-                <div><strong>{openReport?.entryMileage === null || openReport?.entryMileage === undefined ? "—" : `${formatMileage(openReport.entryMileage)} km`}</strong><span>Kilometraje de entrada</span></div>
-                {hasText(openRecord.provider) ? <div><strong>{openRecord.provider}</strong><span>Proveedor</span></div> : null}
+                <div><span>Fecha de ingreso</span><strong>{openReport?.entryAt ? formatDateTime(openReport.entryAt) : "Sin registrar"}</strong></div>
+                <div><span>Kilometraje de entrada</span><strong>{openReport?.entryMileage === null || openReport?.entryMileage === undefined ? "Sin registrar" : `${formatMileage(openReport.entryMileage)} km`}</strong></div>
+                <div><span>Proveedor</span><strong>{hasText(openRecord.provider) ? openRecord.provider : "Sin registrar"}</strong></div>
               </div>
               <button className="button button--primary" onClick={() => onViewReport?.(openRecord.id)} type="button">
-                Continuar mantenimiento
+                Ver orden
+                <ArrowRight aria-hidden="true" size={17} />
               </button>
             </section>
           ) : null}
 
-          {sortedRecords.length > 0 ? (
-            <div className="maintenance-layout">
-              <div className="maintenance-list">
-                {sortedRecords.map((record) => (
-              <button
-                className={`maintenance-card ${selectedRecord?.id === record.id ? "maintenance-card--selected" : ""}`}
-                key={record.id}
-                onClick={() => setSelectedRecordId(record.id)}
-                type="button"
-              >
-                <div className="maintenance-card__date">
-                  <CalendarDays aria-hidden="true" size={17} />
-                  <span>{formatDate(record.serviceDate)}</span>
-                </div>
-                <h4>{record.maintenanceType}</h4>
-                <p>{record.description}</p>
-                <div className="maintenance-card__meta">
-                  <span>{record.mileage === null ? "—" : `${formatMileage(record.mileage)} km`}</span>
-                  <span>{formatCurrency(record.totalCost)}</span>
-                  <span>{displayValue(record.provider)}</span>
-                </div>
-                </button>
-                ))}
+          <section className="maintenance-history">
+            <header className="maintenance-history__header">
+              <div>
+                <h3>Historial de mantenimientos</h3>
+                <span>Lista de órdenes y servicios realizados en esta unidad</span>
               </div>
+              <label className="maintenance-search">
+                <input aria-label="Buscar mantenimientos" onChange={(event) => setHistoryQuery(event.target.value)} placeholder="Buscar por folio, tipo, proveedor..." value={historyQuery} />
+              </label>
+            </header>
 
-              {selectedRecord ? (
-            <article className="maintenance-detail">
+            {filteredRecords.length > 0 ? (
+              <div className="maintenance-history__body">
+                <div className="maintenance-history-list">
+                  {filteredRecords.map((record) => (
+                    <button
+                      className={`maintenance-history-row ${selectedRecord?.id === record.id ? "maintenance-history-row--selected" : ""}`}
+                      key={record.id}
+                      onClick={() => setSelectedRecordId(record.id)}
+                      type="button"
+                    >
+                      <span className="maintenance-history-row__folio">{record.folio}</span>
+                      <span className="maintenance-history-row__type">{record.maintenanceType}</span>
+                      <span>{formatDate(record.serviceDate)}</span>
+                      <span>{record.mileage === null ? "Sin registrar" : `${formatMileage(record.mileage)} km`}</span>
+                      <span>{displayValue(record.provider)}</span>
+                      <span>{record.totalCost === null ? "Sin registrar" : formatCurrency(record.totalCost)}</span>
+                      <span className="maintenance-history-row__status">{record.status === "completed" ? "Completado" : record.status}</span>
+                      <ArrowRight aria-hidden="true" size={17} />
+                    </button>
+                  ))}
+                </div>
+
+                {selectedRecord ? (
+                  <article className="maintenance-detail">
               <header className="maintenance-detail__header">
                 <div>
                   <span className="maintenance-detail__folio">{selectedRecord.folio}</span>
@@ -363,12 +377,16 @@ export function MaintenancePanel({
                 {nextServiceSummary ? <ServiceInfo label="Próximo servicio" value={nextServiceSummary} featured /> : null}
                 {hasText(selectedRecord.notes) ? <ServiceInfo label="Notas" value={selectedRecord.notes.trim()} multiline /> : null}
               </div>
-            </article>
-              ) : null}
-            </div>
-          ) : (
-            <div className="maintenance-history-empty">No hay mantenimientos históricos registrados todavía.</div>
-          )}
+                  </article>
+                ) : null}
+              </div>
+            ) : (
+              <div className="maintenance-history-empty">
+                <Wrench aria-hidden="true" size={26} />
+                <strong>{historyQuery ? "No se encontraron mantenimientos" : "No hay mantenimientos históricos registrados todavía."}</strong>
+              </div>
+            )}
+          </section>
         </>
       )}
 
