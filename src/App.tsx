@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound } from "lucide-react"
+import { ArrowLeft, CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound, Wrench } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleDetail } from "./components/VehicleDetail"
@@ -11,12 +11,13 @@ import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload
 import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 import { useOrganization } from "./contexts/OrganizationContext"
+import { MaintenanceProvidersPage } from "./components/MaintenanceProvidersPage"
 
-type ActiveView = "inicio" | "unidades" | "administracion"
+type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
 const navigationStorageKey = "fleetmaster.navigation.v1"
-const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion"])
+const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores"])
 
 interface StoredNavigation {
   userId: string
@@ -380,6 +381,14 @@ function App() {
             <Settings2 aria-hidden="true" size={19} />
             Administración
           </button>
+          <button
+            className={activeView === "proveedores" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => navigateTo("proveedores")}
+            type="button"
+          >
+            <Wrench aria-hidden="true" size={19} />
+            Talleres y proveedores
+          </button>
         </nav>
         <div className="sidebar__footer">
           <div className="sidebar__account">
@@ -397,6 +406,8 @@ function App() {
         {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" ? (
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
+        ) : activeView === "proveedores" ? (
+          <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>
