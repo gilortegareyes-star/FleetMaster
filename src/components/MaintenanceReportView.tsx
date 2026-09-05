@@ -1,14 +1,16 @@
-import { ArrowLeft, CheckCircle2, Edit3, FileText } from "lucide-react"
+import { AlertCircle, ArrowLeft, CheckCircle2, Circle, CircleDashed, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { MaintenanceReportForm } from "./MaintenanceReportForm"
 import { getMaintenanceReport, saveMaintenanceReport } from "../services/maintenanceReports"
-import { getMaintenanceWorkItems, syncMaintenanceWorkItems } from "../services/maintenanceWorkItems"
+import { createMaintenanceWorkItem, getMaintenanceWorkItems, syncMaintenanceWorkItems, updateMaintenanceWorkItemResult } from "../services/maintenanceWorkItems"
+import { getActiveMaintenanceWorkCatalog } from "../services/maintenanceWorkCatalog"
 import { getMaintenanceParts, syncMaintenanceParts } from "../services/maintenanceParts"
 import { getMaintenanceCostItems, syncMaintenanceCostItems } from "../services/maintenanceCostItems"
 import { closeMaintenanceOrder, updateMaintenanceTotalCost } from "../services/maintenance"
 import type { CloseMaintenanceOrderPayload, MaintenanceRecord } from "../types/maintenance"
 import type { MaintenanceReport, MaintenanceReportPayload, ReceptionConditions } from "../types/maintenanceReport"
-import type { MaintenanceWorkItem, MaintenanceWorkItemDraft } from "../types/maintenanceWorkItem"
+import type { MaintenanceWorkCatalogItem } from "../types/maintenanceWorkCatalog"
+import type { MaintenanceWorkItem, MaintenanceWorkItemDraft, MaintenanceWorkResult } from "../types/maintenanceWorkItem"
 import type { MaintenancePart, MaintenancePartDraft } from "../types/maintenancePart"
 import type { MaintenanceCostItem, MaintenanceCostItemDraft } from "../types/maintenanceCostItem"
 import type { Vehicle } from "../types/vehicle"
@@ -32,6 +34,21 @@ const maintenanceStatusLabels = {
   not_repaired: "No reparado",
   cancelled: "Cancelado",
 } as const
+
+const workResultOptions: Array<{ value: MaintenanceWorkResult | null; label: string }> = [
+  { value: null, label: "Sin resultado" },
+  { value: "completed", label: "Realizado" },
+  { value: "partially_completed", label: "Parcialmente realizado" },
+  { value: "follow_up_required", label: "Requiere seguimiento" },
+  { value: "not_completed", label: "No realizado" },
+]
+
+const workResultMeta: Record<string, { label: string; tone: string; Icon: typeof Circle }> = {
+  completed: { label: "Realizado", tone: "completed", Icon: CheckCircle2 },
+  partially_completed: { label: "Parcialmente realizado", tone: "partial", Icon: MinusCircle },
+  follow_up_required: { label: "Requiere seguimiento", tone: "follow-up", Icon: AlertCircle },
+  not_completed: { label: "No realizado", tone: "not-completed", Icon: Circle },
+}
 
 function ReportField({ label, value }: { label: string; value: string }) {
   return (
@@ -81,6 +98,15 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [workActionError, setWorkActionError] = useState<string | null>(null)
+  const [isWorkModalOpen, setIsWorkModalOpen] = useState(false)
+  const [workCatalog, setWorkCatalog] = useState<MaintenanceWorkCatalogItem[]>([])
+  const [workCatalogQuery, setWorkCatalogQuery] = useState("")
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string | null>(null)
+  const [manualWorkDescription, setManualWorkDescription] = useState("")
+  const [manualWorkNotes, setManualWorkNotes] = useState("")
+  const [workNotes, setWorkNotes] = useState<Record<string, string>>({})
+  const [savingWorkId, setSavingWorkId] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -99,6 +125,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
         if (isActive) {
           setReport(item)
           setWorkItems(maintenanceWorkItems)
+          setWorkNotes(Object.fromEntries(maintenanceWorkItems.map((workItem) => [workItem.id, workItem.notes ?? ""])))
           setParts(maintenanceParts)
           setCostItems(maintenanceCostItems)
           setTotalCost(maintenance.totalCost)
@@ -124,6 +151,67 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       isActive = false
     }
   }, [maintenance.id])
+
+  const filteredWorkCatalog = workCatalog.filter((item) =>
+    item.name.toLocaleLowerCase("es-MX").includes(workCatalogQuery.trim().toLocaleLowerCase("es-MX")),
+  )
+
+  const openWorkModal = async () => {
+    setWorkActionError(null)
+    try {
+      setWorkCatalog(await getActiveMaintenanceWorkCatalog())
+      setWorkCatalogQuery("")
+      setSelectedCatalogId(null)
+      setManualWorkDescription("")
+      setManualWorkNotes("")
+      setIsWorkModalOpen(true)
+    } catch (error) {
+      setWorkActionError(error instanceof Error ? error.message : "No se pudo cargar el catálogo de trabajos.")
+    }
+  }
+
+  const addWorkItem = async () => {
+    const catalogItem = workCatalog.find((item) => item.id === selectedCatalogId)
+    const description = catalogItem?.name ?? manualWorkDescription.trim()
+    if (!description) {
+      setWorkActionError("Selecciona un trabajo o escribe una descripción.")
+      return
+    }
+
+    setSavingWorkId("new")
+    setWorkActionError(null)
+    try {
+      const created = await createMaintenanceWorkItem(maintenance.id, {
+        description,
+        notes: manualWorkNotes.trim() || null,
+        sortOrder: workItems.length,
+        catalogItemId: catalogItem?.id ?? null,
+      })
+      setWorkItems((current) => [...current, created])
+      setWorkNotes((current) => ({ ...current, [created.id]: created.notes ?? "" }))
+      setIsWorkModalOpen(false)
+    } catch (error) {
+      setWorkActionError(error instanceof Error ? error.message : "No se pudo agregar el trabajo.")
+    } finally {
+      setSavingWorkId(null)
+    }
+  }
+
+  const updateWorkItem = async (workItem: MaintenanceWorkItem, result: MaintenanceWorkResult | null, notes: string) => {
+    if (maintenance.status !== "open") return
+
+    setSavingWorkId(workItem.id)
+    setWorkActionError(null)
+    try {
+      const updated = await updateMaintenanceWorkItemResult(workItem.id, result, notes.trim() || null)
+      setWorkItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setWorkNotes((current) => ({ ...current, [updated.id]: updated.notes ?? "" }))
+    } catch (error) {
+      setWorkActionError(error instanceof Error ? error.message : "No se pudo actualizar el trabajo.")
+    } finally {
+      setSavingWorkId(null)
+    }
+  }
 
   const vehicleName = [vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "Sin registrar"
   const nextService = [
@@ -267,7 +355,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
 
       <nav aria-label="Secciones de la orden" className="maintenance-report__nav">
         <a href="#maintenance-report-summary">Resumen</a>
-        {workItems.length > 0 ? <a href="#maintenance-report-work">Trabajos</a> : null}
+        <a href="#maintenance-report-work">Trabajos ({workItems.length})</a>
         {parts.length > 0 ? <a href="#maintenance-report-parts">Refacciones</a> : null}
         {costItems.length > 0 ? <a href="#maintenance-report-costs">Costos</a> : null}
         <a href="#maintenance-report-details">Reportes</a>
@@ -304,7 +392,61 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
 
           {report?.diagnosis ? <ReportSection title="Diagnóstico"><p>{report.diagnosis}</p></ReportSection> : null}
 
-          {workItems.length > 0 ? <div id="maintenance-report-work"><ReportSection title="Trabajos realizados"><ul className="maintenance-work-items__list">{workItems.map((item) => <li key={item.id}><CheckCircle2 aria-hidden="true" size={18} /><div><strong>{item.description}</strong>{hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}</div></li>)}</ul></ReportSection></div> : null}
+          <section className="maintenance-report__work-section" id="maintenance-report-work">
+            <header className="maintenance-report__work-section-header">
+              <div>
+                <h3>Trabajos de la orden</h3>
+                <span>{workItems.length} {workItems.length === 1 ? "trabajo registrado" : "trabajos registrados"}</span>
+              </div>
+              {maintenance.status === "open" ? <button className="button button--secondary" onClick={() => void openWorkModal()} type="button"><Plus aria-hidden="true" size={17} />Agregar trabajo</button> : null}
+            </header>
+            {workActionError ? <div className="form-banner maintenance-report__error">{workActionError}</div> : null}
+            {workItems.length > 0 ? (
+              <div className="maintenance-work-checklist">
+                {workItems.map((item) => {
+                  const resultMeta = item.result ? workResultMeta[item.result] : null
+                  const ResultIcon = resultMeta?.Icon ?? CircleDashed
+                  return (
+                    <article className="maintenance-work-checklist__item" key={item.id}>
+                      <div className="maintenance-work-checklist__identity">
+                        <ResultIcon aria-hidden="true" className={`maintenance-work-result-icon maintenance-work-result-icon--${resultMeta?.tone ?? "empty"}`} size={20} />
+                        <div>
+                          <strong>{item.description}</strong>
+                          {hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}
+                        </div>
+                      </div>
+                      {maintenance.status === "open" ? (
+                        <div className="maintenance-work-checklist__controls">
+                          <select
+                            aria-label={`Resultado de ${item.description}`}
+                            disabled={savingWorkId === item.id}
+                            onChange={(event) => void updateWorkItem(item, event.target.value === "" ? null : event.target.value as MaintenanceWorkResult, workNotes[item.id] ?? "")}
+                            value={item.result ?? ""}
+                          >
+                            {workResultOptions.map((option) => <option key={option.label} value={option.value ?? ""}>{option.label}</option>)}
+                          </select>
+                          <textarea
+                            aria-label={`Notas de ${item.description}`}
+                            disabled={savingWorkId === item.id}
+                            onChange={(event) => setWorkNotes((current) => ({ ...current, [item.id]: event.target.value }))}
+                            placeholder="Nota opcional"
+                            rows={1}
+                            value={workNotes[item.id] ?? ""}
+                          />
+                          <button className="button button--secondary" disabled={savingWorkId === item.id} onClick={() => void updateWorkItem(item, item.result, workNotes[item.id] ?? "")} type="button">Guardar nota</button>
+                        </div>
+                      ) : <span className={`maintenance-work-result maintenance-work-result--${resultMeta?.tone ?? "empty"}`}>{resultMeta?.label ?? "Sin resultado"}</span>}
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="maintenance-work-checklist__empty">
+                <CircleDashed aria-hidden="true" size={22} />
+                <span>No hay trabajos registrados en esta orden.</span>
+              </div>
+            )}
+          </section>
 
           {parts.length > 0 ? <div id="maintenance-report-parts"><ReportSection title="Refacciones y materiales"><div className="maintenance-parts__table"><div className="maintenance-parts__header"><span>Descripción</span><span>Cant.</span><span>Unitario</span><span>Importe</span></div>{parts.map((part) => <div className="maintenance-parts__row" key={part.id}><span>{part.description}{part.unit ? <small>{part.unit}</small> : null}</span><span>{part.quantity}</span><span>{formatCurrency(part.unitCost)}</span><strong>{formatCurrency(calculatePartSubtotal(part.quantity, part.unitCost))}</strong></div>)}</div></ReportSection></div> : null}
 
@@ -332,6 +474,41 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           </section>
         </aside>
       </div>
+
+      {isWorkModalOpen ? (
+        <div aria-modal="true" className="modal-backdrop" role="dialog">
+          <section className="maintenance-work-modal">
+            <header className="maintenance-work-modal__header">
+              <div>
+                <span>Trabajos de la orden</span>
+                <h2>Agregar trabajo</h2>
+              </div>
+              <button aria-label="Cerrar ventana" className="icon-button" onClick={() => setIsWorkModalOpen(false)} type="button"><X aria-hidden="true" size={19} /></button>
+            </header>
+            <label className="maintenance-work-modal__field">
+              <span>Buscar trabajo</span>
+              <div className="maintenance-work-modal__search"><Search aria-hidden="true" size={17} /><input autoFocus onChange={(event) => setWorkCatalogQuery(event.target.value)} placeholder="Buscar en el catálogo..." value={workCatalogQuery} /></div>
+            </label>
+            <div className="maintenance-work-modal__catalog">
+              {filteredWorkCatalog.map((item) => <button className={`maintenance-work-modal__catalog-item ${selectedCatalogId === item.id ? "is-selected" : ""}`} key={item.id} onClick={() => { setSelectedCatalogId(item.id); setManualWorkDescription("") }} type="button"><span>{item.name}</span>{selectedCatalogId === item.id ? <CheckCircle2 aria-hidden="true" size={18} /> : null}</button>)}
+              {filteredWorkCatalog.length === 0 ? <p>No se encontraron trabajos en el catálogo.</p> : null}
+            </div>
+            <div className="maintenance-work-modal__divider"><span>o trabajo personalizado</span></div>
+            <label className="maintenance-work-modal__field">
+              <span>Descripción manual</span>
+              <input onChange={(event) => { setManualWorkDescription(event.target.value); setSelectedCatalogId(null) }} placeholder="Describe el trabajo" value={manualWorkDescription} />
+            </label>
+            <label className="maintenance-work-modal__field">
+              <span>Notas opcionales</span>
+              <textarea onChange={(event) => setManualWorkNotes(event.target.value)} placeholder="Agrega una nota breve" rows={3} value={manualWorkNotes} />
+            </label>
+            <footer className="maintenance-work-modal__footer">
+              <button className="button button--secondary" onClick={() => setIsWorkModalOpen(false)} type="button">Cancelar</button>
+              <button className="button button--primary" disabled={savingWorkId === "new" || (!selectedCatalogId && !manualWorkDescription.trim())} onClick={() => void addWorkItem()} type="button"><Plus aria-hidden="true" size={17} />Agregar trabajo</button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
 
       {isFormOpen ? (
         <MaintenanceReportForm

@@ -96,6 +96,29 @@ export const updateMaintenanceWorkItem = async (id: string, input: MaintenanceWo
   }
 }
 
+export const updateMaintenanceWorkItemResult = async (
+  id: string,
+  result: MaintenanceWorkResult | null,
+  notes: string | null,
+) => {
+  try {
+    const { data, error } = await getSupabaseClient()
+      .from("maintenance_work_items")
+      .update({ result, notes: notes?.trim() || null })
+      .eq("id", id)
+      .select("*")
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return toMaintenanceWorkItem(data as MaintenanceWorkItemRow)
+  } catch (error) {
+    throw new Error(friendlyWorkItemError(error instanceof Error ? error.message : String(error)))
+  }
+}
+
 export const deleteMaintenanceWorkItems = async (ids: string[]) => {
   if (ids.length === 0) {
     return
