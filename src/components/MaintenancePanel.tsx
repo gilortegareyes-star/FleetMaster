@@ -9,11 +9,9 @@ import {
   getMaintenanceByVehicle,
   updateMaintenance,
 } from "../services/maintenance"
-import { getMaintenanceReport } from "../services/maintenanceReports"
 import { getMaintenanceParts } from "../services/maintenanceParts"
 import { getMaintenanceCostItems } from "../services/maintenanceCostItems"
 import type { MaintenancePayload, MaintenanceRecord, OpenMaintenanceOrderPayload } from "../types/maintenance"
-import type { MaintenanceReport } from "../types/maintenanceReport"
 import type { Vehicle } from "../types/vehicle"
 import { displayValue, formatCurrency, formatDate, formatMileage } from "../utils/formatters"
 import { calculateMaintenanceCostTotal } from "../utils/maintenanceCosts"
@@ -74,7 +72,7 @@ export function MaintenancePanel({
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null)
   const [formState, setFormState] = useState<MaintenanceFormState>(null)
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false)
-  const [openReport, setOpenReport] = useState<MaintenanceReport | null>(null)
+  const [openReport, setOpenReport] = useState<{ entryAt: string | null; entryMileage: number | null } | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -90,20 +88,10 @@ export function MaintenancePanel({
       try {
         const items = await getMaintenanceByVehicle(vehicle.id)
         const activeOrder = items.find((item) => item.status === "open") ?? null
-        let activeOrderReport: MaintenanceReport | null = null
-
-        if (activeOrder) {
-          try {
-            activeOrderReport = await getMaintenanceReport(activeOrder.id)
-          } catch {
-            activeOrderReport = null
-          }
-        }
-
         setRecords(items)
         onRecordsChanged?.(items)
         setSelectedRecordId(items.find((item) => item.status !== "open")?.id ?? null)
-        setOpenReport(activeOrderReport)
+        setOpenReport(activeOrder ? { entryAt: activeOrder.entryAt, entryMileage: activeOrder.entryMileage } : null)
       } catch (error) {
         setRecords([])
         setOpenReport(null)
@@ -294,7 +282,7 @@ export function MaintenancePanel({
                   <h4>{openRecord.folio}</h4>
                   <p>{openRecord.maintenanceType}</p>
                 </div>
-                <span className="maintenance-open-order__status">En curso</span>
+                <span className="maintenance-open-order__status">{openRecord.entryAt ? "En curso" : "Abierta"}</span>
               </header>
               <div className="maintenance-open-order__details">
                 <div><span>Fecha de ingreso</span><strong>{openReport?.entryAt ? formatDateTime(openReport.entryAt) : "Sin registrar"}</strong></div>

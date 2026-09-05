@@ -5739,3 +5739,214 @@
     flex-wrap: wrap;
   }
 }
+.maintenance-entry-section {
+  border: 1px solid var(--border-color, #dfe5ec);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  padding: 20px;
+}
+
+.maintenance-entry-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.maintenance-entry-section__header > div > span {
+  display: block;
+  color: var(--text-muted, #667085);
+  font-size: 0.82rem;
+  margin-top: 4px;
+}
+
+.maintenance-entry-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.maintenance-entry-summary__conditions,
+.maintenance-entry-summary__observations {
+  grid-column: 1 / -1;
+}
+
+.maintenance-entry-summary__conditions > span,
+.maintenance-entry-summary__observations > span {
+  display: block;
+  color: var(--text-muted, #667085);
+  font-size: 0.78rem;
+  margin-bottom: 7px;
+}
+
+.maintenance-entry-summary__conditions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.maintenance-entry-summary__conditions > div > span {
+  border-radius: 999px;
+  background: #eef4f8;
+  color: #344054;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+}
+
+.maintenance-entry-summary__observations p {
+  margin: 0;
+  color: #344054;
+}
+
+.maintenance-entry-section__empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted, #667085);
+  min-height: 44px;
+}
+
+.maintenance-entry-modal {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(820px, calc(100vh - 32px));
+  overflow: auto;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(16, 24, 40, 0.22);
+}
+
+.maintenance-entry-modal__header,
+.maintenance-entry-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.maintenance-entry-modal__header {
+  border-bottom: 1px solid #eaecf0;
+}
+
+.maintenance-entry-modal__header span,
+.maintenance-entry-modal label > span,
+.maintenance-entry-modal legend {
+  color: #667085;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.maintenance-entry-modal__header h2 {
+  margin: 4px 0 0;
+  color: #101828;
+  font-size: 1.25rem;
+}
+
+.maintenance-entry-modal__body {
+  display: grid;
+  gap: 17px;
+  padding: 22px 24px;
+}
+
+.maintenance-entry-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.maintenance-entry-modal label,
+.maintenance-entry-modal fieldset {
+  display: grid;
+  gap: 7px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.maintenance-entry-modal input,
+.maintenance-entry-modal select,
+.maintenance-entry-modal textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: #101828;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.maintenance-entry-modal textarea {
+  resize: vertical;
+}
+
+.maintenance-entry-modal__choices {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.maintenance-entry-modal__choices button {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+  padding: 9px 6px;
+}
+
+.maintenance-entry-modal__choices button.is-selected {
+  border-color: #176b87;
+  background: #e6f3f7;
+  color: #11566d;
+  font-weight: 700;
+}
+
+.maintenance-entry-modal__conditions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px 16px;
+}
+
+.maintenance-entry-modal__conditions label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #344054;
+  cursor: pointer;
+}
+
+.maintenance-entry-modal__conditions input {
+  width: auto;
+}
+
+.maintenance-entry-modal__footer {
+  justify-content: flex-end;
+  border-top: 1px solid #eaecf0;
+}
+
+@media (max-width: 700px) {
+  .maintenance-entry-section__header,
+  .maintenance-entry-modal__footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .maintenance-entry-summary,
+  .maintenance-entry-modal__grid,
+  .maintenance-entry-modal__conditions {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-entry-modal__choices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .maintenance-entry-modal__header,
+  .maintenance-entry-modal__body,
+  .maintenance-entry-modal__footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}

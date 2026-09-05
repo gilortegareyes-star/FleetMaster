@@ -40,6 +40,9 @@ export interface MaintenanceRecord {
   maintenanceType: MaintenanceType
   description: string | null
   provider: string | null
+  providerId: string | null
+  entryAt: string | null
+  entryMileage: number | null
   totalCost: number | null
   nextServiceMileage: number | null
   nextServiceDate: string | null
@@ -62,7 +65,7 @@ export interface MaintenanceFormValues {
   notes: string
 }
 
-export type MaintenancePayload = Omit<MaintenanceRecord, "id" | "folio" | "status" | "closedAt" | "createdAt" | "updatedAt">
+export type MaintenancePayload = Omit<MaintenanceRecord, "id" | "folio" | "status" | "closedAt" | "createdAt" | "updatedAt" | "entryAt" | "entryMileage" | "providerId">
 
 export interface OpenMaintenanceOrderPayload {
   vehicleId: string

@@ -12,6 +12,8 @@ interface MaintenanceRow {
   maintenance_type: MaintenanceType
   description: string | null
   provider: string | null
+  provider_id: string | null
+  maintenance_reports?: { entry_at: string | null; entry_mileage: number | null } | Array<{ entry_at: string | null; entry_mileage: number | null }> | null
   total_cost: number | null
   next_service_mileage: number | null
   next_service_date: string | null
@@ -22,7 +24,10 @@ interface MaintenanceRow {
   updated_at: string
 }
 
-const toMaintenanceRecord = (row: MaintenanceRow): MaintenanceRecord => ({
+const toMaintenanceRecord = (row: MaintenanceRow): MaintenanceRecord => {
+  const report = Array.isArray(row.maintenance_reports) ? row.maintenance_reports[0] : row.maintenance_reports
+
+  return {
   id: row.id,
   folio: row.folio,
   vehicleId: row.vehicle_id,
@@ -31,6 +36,9 @@ const toMaintenanceRecord = (row: MaintenanceRow): MaintenanceRecord => ({
   maintenanceType: row.maintenance_type,
   description: row.description,
   provider: row.provider,
+  providerId: row.provider_id ?? null,
+  entryAt: report?.entry_at ?? null,
+  entryMileage: report?.entry_mileage ?? null,
   totalCost: row.total_cost,
   nextServiceMileage: row.next_service_mileage,
   nextServiceDate: row.next_service_date,
@@ -39,7 +47,8 @@ const toMaintenanceRecord = (row: MaintenanceRow): MaintenanceRecord => ({
   closedAt: row.closed_at,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
-})
+  }
+}
 
 const toMaintenanceRow = (payload: MaintenancePayload) => ({
   vehicle_id: payload.vehicleId,
@@ -92,7 +101,7 @@ export const getMaintenanceByVehicle = async (vehicleId: string) => {
   try {
     const { data, error } = await getSupabaseClient()
       .from("maintenance_records")
-      .select("*")
+      .select("*, maintenance_reports(entry_at, entry_mileage)")
       .eq("vehicle_id", vehicleId)
       .order("service_date", { ascending: false })
       .order("created_at", { ascending: false })

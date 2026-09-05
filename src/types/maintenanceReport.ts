@@ -26,6 +26,16 @@ export interface MaintenanceReceptionConditions {
 
 export type ReceptionConditions = MaintenanceReceptionConditions
 
+export interface MaintenanceEntryPayload {
+  maintenanceId: string
+  entryAt: string
+  entryMileage: number
+  providerId: string
+  fuelLevel: MaintenanceEntryFuelLevel
+  conditions: MaintenanceEntryCondition[]
+  observations: string | null
+}
+
 export interface MaintenanceReport {
   maintenanceId: string
   entryAt: string | null

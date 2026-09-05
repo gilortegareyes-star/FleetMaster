@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleDashed, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleDashed, ClipboardCheck, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { MaintenanceReportForm } from "./MaintenanceReportForm"
 import { getMaintenanceReport, saveMaintenanceReport } from "../services/maintenanceReports"
@@ -7,8 +7,12 @@ import { getActiveMaintenanceWorkCatalog } from "../services/maintenanceWorkCata
 import { getMaintenanceParts, syncMaintenanceParts } from "../services/maintenanceParts"
 import { getMaintenanceCostItems, syncMaintenanceCostItems } from "../services/maintenanceCostItems"
 import { closeMaintenanceOrder, updateMaintenanceTotalCost } from "../services/maintenance"
+import { saveMaintenanceEntry } from "../services/maintenanceEntries"
+import { listMaintenanceProviders } from "../services/maintenanceProviders"
+import { useOrganization } from "../contexts/OrganizationContext"
 import type { CloseMaintenanceOrderPayload, MaintenanceRecord } from "../types/maintenance"
-import type { MaintenanceReport, MaintenanceReportPayload, ReceptionConditions } from "../types/maintenanceReport"
+import { maintenanceEntryConditions, maintenanceEntryFuelLevels } from "../types/maintenanceReport"
+import type { MaintenanceEntryCondition, MaintenanceEntryFuelLevel, MaintenanceReport, MaintenanceReportPayload } from "../types/maintenanceReport"
 import type { MaintenanceWorkCatalogItem } from "../types/maintenanceWorkCatalog"
 import type { MaintenanceWorkItem, MaintenanceWorkItemDraft, MaintenanceWorkResult } from "../types/maintenanceWorkItem"
 import type { MaintenancePart, MaintenancePartDraft } from "../types/maintenancePart"
@@ -50,6 +54,23 @@ const workResultMeta: Record<string, { label: string; tone: string; Icon: typeof
   not_completed: { label: "No realizado", tone: "not-completed", Icon: Circle },
 }
 
+const fuelLevelLabels: Record<MaintenanceEntryFuelLevel, string> = {
+  empty: "Vacío",
+  quarter: "1/4",
+  half: "1/2",
+  three_quarters: "3/4",
+  full: "Lleno",
+}
+
+const conditionLabels: Record<MaintenanceEntryCondition, string> = {
+  no_apparent_damage: "Sin daños aparentes",
+  warning_lights: "Testigos encendidos",
+  exterior_damage: "Daño exterior",
+  visible_leak: "Fuga visible",
+  abnormal_noise: "Ruido anormal",
+  other: "Otro",
+}
+
 function ReportField({ label, value }: { label: string; value: string }) {
   return (
     <div className="maintenance-report__field">
@@ -74,20 +95,88 @@ const formatDateTime = (value: string) =>
     timeStyle: "short",
   }).format(new Date(value))
 
-const hasReceptionConditions = (conditions: ReceptionConditions | null) => {
-  if (!conditions) {
-    return false
+const toDateTimeInput = (value: string | null) => {
+  if (!value) return ""
+  const date = new Date(value)
+  const pad = (part: number) => String(part).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+interface MaintenanceEntryModalProps {
+  maintenance: MaintenanceRecord
+  report: MaintenanceReport | null
+  providers: Array<{ id: string; name: string; isActive: boolean }>
+  isSaving: boolean
+  error: string | null
+  onClose: () => void
+  onSubmit: (payload: { maintenanceId: string; entryAt: string; entryMileage: number; providerId: string; fuelLevel: MaintenanceEntryFuelLevel; conditions: MaintenanceEntryCondition[]; observations: string | null }) => void
+}
+
+function MaintenanceEntryModal({ maintenance, report, providers, isSaving, error, onClose, onSubmit }: MaintenanceEntryModalProps) {
+  const existingConditions = report?.receptionConditions?.conditions ?? []
+  const [entryAt, setEntryAt] = useState(toDateTimeInput(report?.entryAt ?? null))
+  const [entryMileage, setEntryMileage] = useState(report?.entryMileage === null || report?.entryMileage === undefined ? "" : String(report.entryMileage))
+  const [providerId, setProviderId] = useState(maintenance.providerId ?? "")
+  const [fuelLevel, setFuelLevel] = useState<MaintenanceEntryFuelLevel>(report?.receptionConditions?.fuelLevel ?? "half")
+  const [conditions, setConditions] = useState<MaintenanceEntryCondition[]>(existingConditions.length > 0 ? existingConditions : ["no_apparent_damage"])
+  const [observations, setObservations] = useState(report?.receptionConditions?.observations ?? "")
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  const toggleCondition = (condition: MaintenanceEntryCondition) => {
+    setConditions((current) => {
+      if (condition === "no_apparent_damage") return current.includes(condition) ? [] : [condition]
+      const withoutClear = current.filter((item) => item !== "no_apparent_damage")
+      return withoutClear.includes(condition) ? withoutClear.filter((item) => item !== condition) : [...withoutClear, condition]
+    })
+  }
+
+  const submit = () => {
+    if (!entryAt || !entryMileage || Number(entryMileage) < 0 || !providerId || conditions.length === 0) {
+      setLocalError("Completa fecha, kilometraje, proveedor y condición de recepción.")
+      return
+    }
+    if (conditions.includes("other") && !observations.trim()) {
+      setLocalError("Agrega observaciones cuando selecciones Otro.")
+      return
+    }
+    setLocalError(null)
+    onSubmit({
+      maintenanceId: maintenance.id,
+      entryAt: new Date(entryAt).toISOString(),
+      entryMileage: Number(entryMileage),
+      providerId,
+      fuelLevel,
+      conditions,
+      observations: observations.trim() || null,
+    })
   }
 
   return (
-    (conditions.fuelLevelPercent !== null && conditions.fuelLevelPercent !== undefined) ||
-    hasText(conditions.warningLights ?? null) ||
-    hasText(conditions.visibleDamage ?? null) ||
-    hasText(conditions.observations ?? null)
+    <div aria-modal="true" className="modal-backdrop" role="dialog">
+      <section className="maintenance-entry-modal">
+        <header className="maintenance-entry-modal__header">
+          <div><span>Registro de ingreso</span><h2>{report?.entryAt ? "Editar ingreso" : "Registrar ingreso"}</h2></div>
+          <button aria-label="Cerrar ventana" className="icon-button" onClick={onClose} type="button"><X aria-hidden="true" size={19} /></button>
+        </header>
+        <div className="maintenance-entry-modal__body">
+          <div className="maintenance-entry-modal__grid">
+            <label><span>Fecha y hora de ingreso *</span><input onChange={(event) => setEntryAt(event.target.value)} type="datetime-local" value={entryAt} /></label>
+            <label><span>Kilometraje de entrada *</span><input min="0" onChange={(event) => setEntryMileage(event.target.value)} type="number" value={entryMileage} /></label>
+          </div>
+          <label><span>Taller / proveedor *</span><select onChange={(event) => setProviderId(event.target.value)} value={providerId}><option value="">Selecciona un proveedor</option>{providers.map((provider) => <option disabled={!provider.isActive && provider.id !== maintenance.providerId} key={provider.id} value={provider.id}>{provider.name}{provider.isActive ? "" : " (inactivo)"}</option>)}</select></label>
+          <fieldset><legend>Nivel de combustible *</legend><div className="maintenance-entry-modal__choices">{maintenanceEntryFuelLevels.map((level) => <button aria-pressed={fuelLevel === level} className={fuelLevel === level ? "is-selected" : ""} key={level} onClick={() => setFuelLevel(level)} type="button">{fuelLevelLabels[level]}</button>)}</div></fieldset>
+          <fieldset><legend>Condiciones de recepción *</legend><div className="maintenance-entry-modal__conditions">{maintenanceEntryConditions.map((condition) => <label key={condition}><input checked={conditions.includes(condition)} onChange={() => toggleCondition(condition)} type="checkbox" /><span>{conditionLabels[condition]}</span></label>)}</div></fieldset>
+          <label><span>Observaciones {conditions.includes("other") ? "*" : "(opcional)"}</span><textarea onChange={(event) => setObservations(event.target.value)} placeholder="Describe cualquier detalle relevante..." rows={3} value={observations} /></label>
+          {localError || error ? <div className="form-banner maintenance-report__error">{localError || error}</div> : null}
+        </div>
+        <footer className="maintenance-entry-modal__footer"><button className="button button--secondary" onClick={onClose} type="button">Cancelar</button><button className="button button--primary" disabled={isSaving} onClick={submit} type="button"><ClipboardCheck aria-hidden="true" size={17} />{isSaving ? "Guardando..." : "Guardar ingreso"}</button></footer>
+      </section>
+    </div>
   )
 }
 
 export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintenanceChanged }: MaintenanceReportViewProps) {
+  const { activeOrganization } = useOrganization()
   const [report, setReport] = useState<MaintenanceReport | null>(null)
   const [workItems, setWorkItems] = useState<MaintenanceWorkItem[]>([])
   const [parts, setParts] = useState<MaintenancePart[]>([])
@@ -109,6 +198,10 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const [workDraftResults, setWorkDraftResults] = useState<Record<string, MaintenanceWorkResult | null>>({})
   const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null)
   const [savingWorkId, setSavingWorkId] = useState<string | null>(null)
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false)
+  const [entryProviders, setEntryProviders] = useState<Array<{ id: string; name: string; isActive: boolean }>>([])
+  const [isEntrySaving, setIsEntrySaving] = useState(false)
+  const [entryError, setEntryError] = useState<string | null>(null)
 
   useEffect(() => {
     let isActive = true
@@ -172,6 +265,34 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       setIsWorkModalOpen(true)
     } catch (error) {
       setWorkActionError(error instanceof Error ? error.message : "No se pudo cargar el catálogo de trabajos.")
+    }
+  }
+
+  const openEntryModal = async () => {
+    setEntryError(null)
+    try {
+      if (!activeOrganization?.id) throw new Error("No hay una organización activa disponible.")
+      const providers = await listMaintenanceProviders(activeOrganization.id)
+      setEntryProviders(providers)
+      setIsEntryModalOpen(true)
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : "No se pudo cargar el catálogo de proveedores.")
+    }
+  }
+
+  const handleSaveEntry = async (payload: Parameters<typeof saveMaintenanceEntry>[0]) => {
+    setIsEntrySaving(true)
+    setEntryError(null)
+    try {
+      const savedReport = await saveMaintenanceEntry(payload)
+      setReport(savedReport)
+      const updatedMaintenance = { ...maintenance, providerId: payload.providerId, entryAt: savedReport.entryAt, entryMileage: savedReport.entryMileage }
+      onMaintenanceChanged(updatedMaintenance)
+      setIsEntryModalOpen(false)
+    } catch (error) {
+      setEntryError(error instanceof Error ? error.message : "No se pudo guardar el registro de ingreso.")
+    } finally {
+      setIsEntrySaving(false)
     }
   }
 
@@ -275,10 +396,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
     .filter(Boolean)
     .join(" · ")
   const receptionConditions = report?.receptionConditions ?? null
-  const receptionFuelLevel = receptionConditions?.fuelLevelPercent ?? null
-  const receptionWarningLights = receptionConditions?.warningLights?.trim() || null
-  const receptionVisibleDamage = receptionConditions?.visibleDamage?.trim() || null
-  const receptionObservations = receptionConditions?.observations?.trim() || null
+  const entryFuelLevel = receptionConditions?.fuelLevel ?? null
+  const entryConditionList = receptionConditions?.conditions ?? []
 
   const persistProgress = async (
     payload: MaintenanceReportPayload,
@@ -371,7 +490,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           <div className="maintenance-report__meta">
             <span className="maintenance-report__folio">{maintenance.folio}</span>
             <span className={`maintenance-report__status maintenance-report__status--${maintenance.status}`}>
-              {maintenance.status === "open" ? "En curso" : maintenanceStatusLabels[maintenance.status]}
+              {maintenance.status === "open" ? (report?.entryAt ? "En curso" : "Abierta") : maintenanceStatusLabels[maintenance.status]}
             </span>
           </div>
         </div>
@@ -407,14 +526,6 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
         </div>
       </section>
 
-      <nav aria-label="Secciones de la orden" className="maintenance-report__nav">
-        <a href="#maintenance-report-summary">Resumen</a>
-        <a href="#maintenance-report-work">Trabajos ({workItems.length})</a>
-        {parts.length > 0 ? <a href="#maintenance-report-parts">Refacciones</a> : null}
-        {costItems.length > 0 ? <a href="#maintenance-report-costs">Costos</a> : null}
-        <a href="#maintenance-report-details">Reportes</a>
-      </nav>
-
       {loadError ? <div className="form-banner maintenance-report__error">{loadError}</div> : null}
 
       <div className="maintenance-report__layout">
@@ -432,19 +543,30 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
             </div>
           </section>
 
-          <div id="maintenance-report-details">
-          {report?.entryAt || report?.exitAt || report?.entryMileage !== null && report?.entryMileage !== undefined ? (
+          <section className="maintenance-entry-section">
+            <header className="maintenance-entry-section__header">
+              <div><div className="section-title"><ClipboardCheck aria-hidden="true" size={18} /><h3>Registro de ingreso</h3></div><span>Datos capturados al recibir la unidad</span></div>
+              {maintenance.status === "open" ? <button className="button button--secondary" onClick={() => void openEntryModal()} type="button"><Edit3 aria-hidden="true" size={17} />{report?.entryAt ? "Editar ingreso" : "Registrar ingreso"}</button> : null}
+            </header>
+            {entryError ? <div className="form-banner maintenance-report__error">{entryError}</div> : null}
+            {report?.entryAt ? <div className="maintenance-entry-summary">
+              <ReportField label="Fecha y hora" value={formatDateTime(report.entryAt)} />
+              <ReportField label="Kilometraje" value={report.entryMileage === null ? "Sin registrar" : `${formatMileage(report.entryMileage)} km`} />
+              <ReportField label="Taller / proveedor" value={hasText(maintenance.provider) ? maintenance.provider.trim() : "Sin registrar"} />
+              <ReportField label="Combustible" value={entryFuelLevel ? fuelLevelLabels[entryFuelLevel] : "Sin registrar"} />
+              <div className="maintenance-entry-summary__conditions"><span>Condiciones</span><div>{entryConditionList.length > 0 ? entryConditionList.map((condition) => <span key={condition}>{conditionLabels[condition]}</span>) : <strong>Sin registrar</strong>}</div></div>
+              {hasText(receptionConditions?.observations ?? null) ? <div className="maintenance-entry-summary__observations"><span>Observaciones</span><p>{receptionConditions?.observations}</p></div> : null}
+            </div> : <div className="maintenance-entry-section__empty"><CircleDashed aria-hidden="true" size={22} /><span>Aún no se ha registrado el ingreso de la unidad.</span></div>}
+          </section>
+
+          {report?.exitAt ? (
             <ReportSection title="Ingreso y salida">
               <div className="maintenance-report__timeline">
-                {report?.entryAt || report?.entryMileage !== null && report?.entryMileage !== undefined ? <div><span>Ingreso</span>{report?.entryAt ? <strong>{formatDateTime(report.entryAt)}</strong> : null}{report?.entryMileage !== null && report?.entryMileage !== undefined ? <small>{formatMileage(report.entryMileage)} km</small> : null}</div> : null}
-                {report?.exitAt ? <div><span>Salida</span><strong>{formatDateTime(report.exitAt)}</strong>{maintenance.mileage !== null ? <small>{formatMileage(maintenance.mileage)} km</small> : null}</div> : null}
+                <div><span>Ingreso</span>{report?.entryAt ? <strong>{formatDateTime(report.entryAt)}</strong> : null}{report?.entryMileage !== null && report?.entryMileage !== undefined ? <small>{formatMileage(report.entryMileage)} km</small> : null}</div>
+                <div><span>Salida</span><strong>{formatDateTime(report.exitAt)}</strong>{maintenance.mileage !== null ? <small>{formatMileage(maintenance.mileage)} km</small> : null}</div>
               </div>
             </ReportSection>
           ) : null}
-
-          {hasReceptionConditions(receptionConditions) ? <ReportSection title="Condiciones de recepción"><div className="maintenance-report__conditions-grid">{receptionFuelLevel !== null ? <ReportField label="Nivel de combustible" value={`${receptionFuelLevel}%`} /> : null}{receptionWarningLights ? <ReportField label="Testigos encendidos" value={receptionWarningLights} /> : null}{receptionVisibleDamage ? <ReportField label="Daños visibles" value={receptionVisibleDamage} /> : null}{receptionObservations ? <ReportField label="Observaciones" value={receptionObservations} /> : null}</div></ReportSection> : null}
-
-          {report?.diagnosis ? <ReportSection title="Diagnóstico"><p>{report.diagnosis}</p></ReportSection> : null}
 
           <section className="maintenance-report__work-section" id="maintenance-report-work">
             <header className="maintenance-report__work-section-header">
@@ -518,6 +640,9 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
             )}
           </section>
 
+          <div id="maintenance-report-details">
+          {report?.diagnosis ? <ReportSection title="Diagnóstico"><p>{report.diagnosis}</p></ReportSection> : null}
+
           {parts.length > 0 ? <div id="maintenance-report-parts"><ReportSection title="Refacciones y materiales"><div className="maintenance-parts__table"><div className="maintenance-parts__header"><span>Descripción</span><span>Cant.</span><span>Unitario</span><span>Importe</span></div>{parts.map((part) => <div className="maintenance-parts__row" key={part.id}><span>{part.description}{part.unit ? <small>{part.unit}</small> : null}</span><span>{part.quantity}</span><span>{formatCurrency(part.unitCost)}</span><strong>{formatCurrency(calculatePartSubtotal(part.quantity, part.unitCost))}</strong></div>)}</div></ReportSection></div> : null}
 
           {report?.recommendations ? <ReportSection title="Recomendaciones"><p>{report.recommendations}</p></ReportSection> : null}
@@ -583,6 +708,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           </section>
         </div>
       ) : null}
+
+      {isEntryModalOpen ? <MaintenanceEntryModal maintenance={maintenance} report={report} providers={entryProviders} isSaving={isEntrySaving} error={entryError} onClose={() => setIsEntryModalOpen(false)} onSubmit={(payload) => void handleSaveEntry(payload)} /> : null}
 
       {isFormOpen ? (
         <MaintenanceReportForm

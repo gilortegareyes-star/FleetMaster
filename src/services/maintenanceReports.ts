@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "./supabase"
-import type { MaintenanceReport, MaintenanceReportPayload, ReceptionConditions } from "../types/maintenanceReport"
+import { maintenanceEntryConditions, maintenanceEntryFuelLevels } from "../types/maintenanceReport"
+import type { MaintenanceEntryCondition, MaintenanceEntryFuelLevel, MaintenanceReport, MaintenanceReportPayload, ReceptionConditions } from "../types/maintenanceReport"
 
 interface MaintenanceReportRow {
   maintenance_id: string
@@ -24,18 +25,24 @@ const toReceptionConditions = (value: unknown): ReceptionConditions | null => {
     return null
   }
 
-  const conditions = value as Record<string, unknown>
-  const fuelLevelPercent = typeof conditions.fuelLevelPercent === "number" ? conditions.fuelLevelPercent : null
-  const warningLights = toOptionalString(conditions.warningLights)
-  const visibleDamage = toOptionalString(conditions.visibleDamage)
-  const observations = toOptionalString(conditions.observations)
+  const rawConditions = value as Record<string, unknown>
+  const fuelLevel = typeof rawConditions.fuelLevel === "string" && maintenanceEntryFuelLevels.includes(rawConditions.fuelLevel as MaintenanceEntryFuelLevel)
+    ? rawConditions.fuelLevel as MaintenanceEntryFuelLevel
+    : null
+  const conditions = Array.isArray(rawConditions.conditions)
+    ? rawConditions.conditions.filter((condition): condition is MaintenanceEntryCondition => typeof condition === "string" && maintenanceEntryConditions.includes(condition as MaintenanceEntryCondition))
+    : []
+  const fuelLevelPercent = typeof rawConditions.fuelLevelPercent === "number" ? rawConditions.fuelLevelPercent : null
+  const warningLights = toOptionalString(rawConditions.warningLights)
+  const visibleDamage = toOptionalString(rawConditions.visibleDamage)
+  const observations = toOptionalString(rawConditions.observations)
 
-  return fuelLevelPercent === null && !warningLights && !visibleDamage && !observations
+  return fuelLevel === null && conditions.length === 0 && fuelLevelPercent === null && !warningLights && !visibleDamage && !observations
     ? null
-    : { fuelLevelPercent, warningLights, visibleDamage, observations }
+    : { fuelLevel, conditions, fuelLevelPercent, warningLights, visibleDamage, observations }
 }
 
-const toMaintenanceReport = (row: MaintenanceReportRow): MaintenanceReport => ({
+export const toMaintenanceReport = (row: MaintenanceReportRow): MaintenanceReport => ({
   maintenanceId: row.maintenance_id,
   entryAt: row.entry_at,
   exitAt: row.exit_at,
