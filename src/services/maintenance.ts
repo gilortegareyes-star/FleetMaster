@@ -101,7 +101,7 @@ export const getMaintenanceByVehicle = async (vehicleId: string) => {
   try {
     const { data, error } = await getSupabaseClient()
       .from("maintenance_records")
-      .select("*, maintenance_reports(entry_at, entry_mileage)")
+      .select("*, maintenance_reports!maintenance_reports_maintenance_id_fkey(entry_at, entry_mileage)")
       .eq("vehicle_id", vehicleId)
       .order("service_date", { ascending: false })
       .order("created_at", { ascending: false })
