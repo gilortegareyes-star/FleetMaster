@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, CheckCircle2, Circle, CircleDashed, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleDashed, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { MaintenanceReportForm } from "./MaintenanceReportForm"
 import { getMaintenanceReport, saveMaintenanceReport } from "../services/maintenanceReports"
@@ -106,6 +106,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
   const [isManualWorkMode, setIsManualWorkMode] = useState(false)
   const [manualWorkDescription, setManualWorkDescription] = useState("")
   const [workNotes, setWorkNotes] = useState<Record<string, string>>({})
+  const [workDraftResults, setWorkDraftResults] = useState<Record<string, MaintenanceWorkResult | null>>({})
+  const [expandedWorkId, setExpandedWorkId] = useState<string | null>(null)
   const [savingWorkId, setSavingWorkId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -126,6 +128,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           setReport(item)
           setWorkItems(maintenanceWorkItems)
           setWorkNotes(Object.fromEntries(maintenanceWorkItems.map((workItem) => [workItem.id, workItem.notes ?? ""])))
+          setWorkDraftResults(Object.fromEntries(maintenanceWorkItems.map((workItem) => [workItem.id, workItem.result])))
+          setExpandedWorkId(null)
           setParts(maintenanceParts)
           setCostItems(maintenanceCostItems)
           setTotalCost(maintenance.totalCost)
@@ -197,8 +201,9 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
           sortOrder: workItems.length,
           catalogItemId: null,
         })
-        setWorkItems((current) => [...current, created])
-        setWorkNotes((current) => ({ ...current, [created.id]: "" }))
+      setWorkItems((current) => [...current, created])
+      setWorkNotes((current) => ({ ...current, [created.id]: "" }))
+      setWorkDraftResults((current) => ({ ...current, [created.id]: null }))
         setIsWorkModalOpen(false)
       } catch (error) {
         setWorkActionError(error instanceof Error ? error.message : "No se pudo agregar el trabajo.")
@@ -234,6 +239,7 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       if (refreshedItems) {
         setWorkItems(refreshedItems)
         setWorkNotes(Object.fromEntries(refreshedItems.map((workItem) => [workItem.id, workItem.notes ?? ""])))
+        setWorkDraftResults(Object.fromEntries(refreshedItems.map((workItem) => [workItem.id, workItem.result])))
       }
       setWorkActionError(createdCount > 0
         ? `Se agregaron ${createdCount} de ${catalogItems.length} trabajos. Algunos no pudieron agregarse.`
@@ -252,6 +258,8 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
       const updated = await updateMaintenanceWorkItemResult(workItem.id, result, notes.trim() || null)
       setWorkItems((current) => current.map((item) => (item.id === updated.id ? updated : item)))
       setWorkNotes((current) => ({ ...current, [updated.id]: updated.notes ?? "" }))
+      setWorkDraftResults((current) => ({ ...current, [updated.id]: updated.result }))
+      setExpandedWorkId(null)
     } catch (error) {
       setWorkActionError(error instanceof Error ? error.message : "No se pudo actualizar el trabajo.")
     } finally {
@@ -451,37 +459,53 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
               <div className="maintenance-work-checklist">
                 {workItems.map((item) => {
                   const resultMeta = item.result ? workResultMeta[item.result] : null
-                  const ResultIcon = resultMeta?.Icon ?? CircleDashed
+                  const ResultIcon = resultMeta?.Icon ?? Circle
+                  const isExpanded = expandedWorkId === item.id
                   return (
-                    <article className="maintenance-work-checklist__item" key={item.id}>
-                      <div className="maintenance-work-checklist__identity">
-                        <ResultIcon aria-hidden="true" className={`maintenance-work-result-icon maintenance-work-result-icon--${resultMeta?.tone ?? "empty"}`} size={20} />
-                        <div>
+                    <article className={`maintenance-work-checklist__item ${isExpanded ? "is-expanded" : ""}`} key={item.id}>
+                      <button
+                        aria-expanded={isExpanded}
+                        className="maintenance-work-checklist__row"
+                        onClick={() => setExpandedWorkId(isExpanded ? null : item.id)}
+                        type="button"
+                      >
+                        <span className="maintenance-work-checklist__identity">
+                          <ResultIcon aria-hidden="true" className={`maintenance-work-result-icon maintenance-work-result-icon--${resultMeta?.tone ?? "empty"}`} size={20} />
                           <strong>{item.description}</strong>
-                          {maintenance.status !== "open" && hasText(item.notes) ? <p>{item.notes.trim()}</p> : null}
-                        </div>
-                      </div>
-                      {maintenance.status === "open" ? (
-                        <div className="maintenance-work-checklist__controls">
-                          <select
+                        </span>
+                        <span className="maintenance-work-checklist__row-meta">
+                          {resultMeta ? <span className={`maintenance-work-result maintenance-work-result--${resultMeta.tone}`}>{resultMeta.label}</span> : null}
+                          {isExpanded ? <ChevronDown aria-hidden="true" size={18} /> : <ChevronRight aria-hidden="true" size={18} />}
+                        </span>
+                      </button>
+                      {isExpanded ? <div className="maintenance-work-checklist__details" onClick={(event) => event.stopPropagation()}>
+                        <div className="maintenance-work-checklist__detail-field">
+                          <span>Resultado</span>
+                          {maintenance.status === "open" ? <select
                             aria-label={`Resultado de ${item.description}`}
                             disabled={savingWorkId === item.id}
-                            onChange={(event) => void updateWorkItem(item, event.target.value === "" ? null : event.target.value as MaintenanceWorkResult, workNotes[item.id] ?? "")}
-                            value={item.result ?? ""}
+                            onChange={(event) => setWorkDraftResults((current) => ({ ...current, [item.id]: event.target.value === "" ? null : event.target.value as MaintenanceWorkResult }))}
+                            value={workDraftResults[item.id] ?? ""}
                           >
                             {workResultOptions.map((option) => <option key={option.label} value={option.value ?? ""}>{option.label}</option>)}
-                          </select>
-                          <textarea
+                          </select> : <strong>{resultMeta?.label ?? "Sin resultado"}</strong>}
+                        </div>
+                        <div className="maintenance-work-checklist__detail-field">
+                          <span>Notas</span>
+                          {maintenance.status === "open" ? <textarea
                             aria-label={`Notas de ${item.description}`}
                             disabled={savingWorkId === item.id}
                             onChange={(event) => setWorkNotes((current) => ({ ...current, [item.id]: event.target.value }))}
-                            placeholder="Nota opcional"
-                            rows={1}
+                            placeholder="Agregar una nota sobre este trabajo..."
+                            rows={3}
                             value={workNotes[item.id] ?? ""}
-                          />
-                          <button className="button button--secondary" disabled={savingWorkId === item.id} onClick={() => void updateWorkItem(item, item.result, workNotes[item.id] ?? "")} type="button">Guardar nota</button>
+                          /> : <p className="maintenance-work-checklist__read-only-notes">{hasText(item.notes) ? item.notes.trim() : "Sin notas registradas."}</p>}
                         </div>
-                      ) : <span className={`maintenance-work-result maintenance-work-result--${resultMeta?.tone ?? "empty"}`}>{resultMeta?.label ?? "Pendiente"}</span>}
+                        {maintenance.status === "open" ? <div className="maintenance-work-checklist__detail-actions">
+                          <button className="button button--secondary" onClick={() => { setWorkDraftResults((current) => ({ ...current, [item.id]: item.result })); setWorkNotes((current) => ({ ...current, [item.id]: item.notes ?? "" })); setExpandedWorkId(null) }} type="button">Cancelar</button>
+                          <button className="button button--primary" disabled={savingWorkId === item.id} onClick={() => void updateWorkItem(item, workDraftResults[item.id] ?? null, workNotes[item.id] ?? "")} type="button">Guardar cambios</button>
+                        </div> : null}
+                      </div> : null}
                     </article>
                   )
                 })}

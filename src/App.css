@@ -5366,3 +5366,121 @@
     grid-row: 1 / span 3;
   }
 }
+
+.maintenance-work-checklist__item {
+  display: block;
+  padding: 0;
+}
+
+.maintenance-work-checklist__row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  padding: 12px 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.maintenance-work-checklist__row:hover {
+  background: #f8fbf9;
+}
+
+.maintenance-work-checklist__row:focus-visible {
+  outline: 2px solid #0f615b;
+  outline-offset: -2px;
+}
+
+.maintenance-work-checklist__row .maintenance-work-checklist__identity {
+  align-items: center;
+}
+
+.maintenance-work-checklist__row-meta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 12px;
+  color: #87938e;
+}
+
+.maintenance-work-checklist__row-meta .maintenance-work-result {
+  justify-self: auto;
+}
+
+.maintenance-work-checklist__details {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid #e5ece8;
+  padding: 16px 14px 14px 44px;
+  background: #fbfdfc;
+}
+
+.maintenance-work-checklist__detail-field > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #64736d;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.maintenance-work-checklist__detail-field select,
+.maintenance-work-checklist__detail-field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d6e1dc;
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #ffffff;
+  color: #25312d;
+  font: inherit;
+}
+
+.maintenance-work-checklist__detail-field textarea {
+  resize: vertical;
+}
+
+.maintenance-work-checklist__detail-field > strong,
+.maintenance-work-checklist__read-only-notes {
+  display: block;
+  margin: 0;
+  color: #25312d;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.maintenance-work-checklist__detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .maintenance-work-checklist__row {
+    align-items: flex-start;
+    padding: 11px 12px;
+  }
+
+  .maintenance-work-checklist__row-meta {
+    gap: 8px;
+  }
+
+  .maintenance-work-checklist__row-meta .maintenance-work-result {
+    max-width: 140px;
+    white-space: normal;
+  }
+
+  .maintenance-work-checklist__details {
+    padding-left: 42px;
+  }
+
+  .maintenance-work-checklist__detail-actions {
+    flex-wrap: wrap;
+  }
+}
