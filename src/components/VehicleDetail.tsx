@@ -468,10 +468,10 @@ export function VehicleDetail({
               </button>
             ))}
           </div>
-          <button className="button button--secondary vehicle-tabs-row__action" onClick={onEdit} type="button">
+          {activeTab !== "maintenance" ? <button className="button button--secondary vehicle-tabs-row__action" onClick={onEdit} type="button">
             <Edit3 aria-hidden="true" size={17} />
             Editar unidad
-          </button>
+          </button> : null}
         </div>
       ) : null}
 

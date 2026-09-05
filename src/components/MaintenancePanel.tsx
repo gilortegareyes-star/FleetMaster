@@ -257,10 +257,6 @@ export function MaintenancePanel({
               <Plus aria-hidden="true" size={17} />
               Nueva orden de mantenimiento
             </button>
-            <button className="button button--secondary" onClick={openCreateForm} type="button">
-              <Wrench aria-hidden="true" size={17} />
-              Registrar mantenimiento
-            </button>
           </div>
         ) : null}
       </header>
