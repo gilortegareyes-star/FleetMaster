@@ -103,6 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      if (!isSameResolvedUser) {
+        authorizationResolvedRef.current = false
+        setLoading(true)
+        setAuthorizationLoading(true)
+        setOrganizationAccessLoading(true)
+        setIsFleetmasterAdmin(false)
+        setOrganizationAccess(null)
+      }
+
       const { data, error } = await supabase.rpc("is_fleetmaster_admin")
 
       if (isSameResolvedUser) {
@@ -125,13 +134,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return
       }
-
-      authorizationResolvedRef.current = false
-      setLoading(true)
-      setAuthorizationLoading(true)
-      setOrganizationAccessLoading(true)
-      setIsFleetmasterAdmin(false)
-      setOrganizationAccess(null)
 
       if (isActive && currentCheckId === sessionCheckId) {
         const isAdmin = !error && data === true
