@@ -4378,6 +4378,28 @@
   font-size: 1rem;
 }
 
+.maintenance-report__summary-counts {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #edf1ef;
+  padding-bottom: 16px;
+}
+
+.maintenance-report__summary-counts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #64736d;
+  font-size: 0.84rem;
+}
+
+.maintenance-report__summary-counts strong {
+  color: #17211d;
+  font-size: 0.95rem;
+}
+
 .maintenance-report__total-cost {
   font-size: 1.42rem;
 }

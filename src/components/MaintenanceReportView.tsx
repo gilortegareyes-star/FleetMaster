@@ -318,6 +318,11 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
         <aside className="maintenance-report__aside">
           <section className="maintenance-report__order-summary" id="maintenance-report-costs">
             <h3>Resumen de la orden</h3>
+            <div className="maintenance-report__summary-counts">
+              <div><span>Trabajos registrados</span><strong>{workItems.length}</strong></div>
+              <div><span>Refacciones registradas</span><strong>{parts.length}</strong></div>
+              <div><span>Costos registrados</span><strong>{costItems.length}</strong></div>
+            </div>
             <div className="maintenance-report__summary-cost">
               <span>{hasEconomicBreakdown ? "Costos" : "Costo total"}</span>
               {hasEconomicBreakdown ? <dl className="maintenance-cost-summary__view"><div><dt>Refacciones / materiales</dt><dd>{formatCurrency(partsTotal)}</dd></div><div><dt>Mano de obra</dt><dd>{formatCurrency(laborTotal)}</dd></div><div><dt>Otros cargos</dt><dd>{formatCurrency(otherTotal)}</dd></div><div className="maintenance-cost-summary__total"><dt>Total</dt><dd>{formatCurrency(economicTotal)}</dd></div></dl> : <strong className="maintenance-report__total-cost">{totalCost === null ? "Sin registrar" : formatCurrency(totalCost)}</strong>}
