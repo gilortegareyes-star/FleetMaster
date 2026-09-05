@@ -22,6 +22,8 @@ interface StoredNavigation {
   userId: string
   organizationId: string | null
   activeView: ActiveView
+  selectedVehicleId?: string | null
+  isVehicleCenterOpen?: boolean
 }
 
 const initialFilters: VehicleFilters = {
@@ -47,15 +49,20 @@ function App() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [pendingDocumentVehicleIds, setPendingDocumentVehicleIds] = useState<Set<string> | null>(null)
 
-  const storeNavigation = (view: ActiveView, organizationId = activeOrganization?.id ?? null) => {
+  const storeNavigation = (
+    view: ActiveView,
+    organizationId = activeOrganization?.id ?? null,
+    selectedVehicleId: string | null = null,
+    isVehicleCenterOpen = false,
+  ) => {
     if (!user) return
-    const stored: StoredNavigation = { userId: user.id, organizationId, activeView: view }
+    const stored: StoredNavigation = { userId: user.id, organizationId, activeView: view, selectedVehicleId, isVehicleCenterOpen }
     window.sessionStorage.setItem(navigationStorageKey, JSON.stringify(stored))
   }
 
-  const navigateTo = (view: ActiveView) => {
+  const navigateTo = (view: ActiveView, clearVehicle = false) => {
     setActiveView(view)
-    storeNavigation(view)
+    storeNavigation(view, activeOrganization?.id ?? null, clearVehicle ? null : selectedVehicleId, clearVehicle ? false : isVehicleCenterOpen)
   }
 
   useEffect(() => {
@@ -74,7 +81,9 @@ function App() {
         stored.userId !== user.id ||
         typeof stored.activeView !== "string" ||
         !validActiveViews.has(stored.activeView as ActiveView) ||
-        (stored.organizationId !== null && typeof stored.organizationId !== "string")
+        (stored.organizationId !== null && typeof stored.organizationId !== "string") ||
+        (stored.selectedVehicleId !== undefined && stored.selectedVehicleId !== null && typeof stored.selectedVehicleId !== "string") ||
+        (stored.isVehicleCenterOpen !== undefined && typeof stored.isVehicleCenterOpen !== "boolean")
       ) {
         window.sessionStorage.removeItem(navigationStorageKey)
         setActiveView("unidades")
@@ -121,7 +130,43 @@ function App() {
         const items = await listVehicles(activeOrganization.id)
         if (!isActive) return
         setVehicles(items)
-        setSelectedVehicleId((current) => current ?? items[0]?.id ?? null)
+
+        let storedVehicleId: string | null = null
+        let shouldRestoreVehicle = false
+        const storedNavigation = window.sessionStorage.getItem(navigationStorageKey)
+        if (storedNavigation) {
+          try {
+            const parsed = JSON.parse(storedNavigation) as Partial<StoredNavigation>
+            if (
+              parsed.userId === user?.id &&
+              parsed.organizationId === activeOrganization.id &&
+              parsed.isVehicleCenterOpen === true &&
+              typeof parsed.selectedVehicleId === "string" &&
+              items.some((item) => item.id === parsed.selectedVehicleId)
+            ) {
+              storedVehicleId = parsed.selectedVehicleId
+              shouldRestoreVehicle = true
+            }
+          } catch {
+            window.sessionStorage.removeItem(navigationStorageKey)
+          }
+        }
+
+        setSelectedVehicleId((current) => current ?? storedVehicleId ?? items[0]?.id ?? null)
+        setIsVehicleCenterOpen(shouldRestoreVehicle)
+        if (storedNavigation && !shouldRestoreVehicle) {
+          try {
+            const parsed = JSON.parse(storedNavigation) as Partial<StoredNavigation>
+            if (parsed.userId === user?.id && parsed.organizationId === activeOrganization.id && parsed.isVehicleCenterOpen === true) {
+              window.sessionStorage.setItem(
+                navigationStorageKey,
+                JSON.stringify({ ...parsed, selectedVehicleId: null, isVehicleCenterOpen: false }),
+              )
+            }
+          } catch {
+            window.sessionStorage.removeItem(navigationStorageKey)
+          }
+        }
       } catch (error) {
         if (!isActive) return
         setLoadError(error instanceof Error ? error.message : "No se pudieron cargar las unidades.")
@@ -248,6 +293,7 @@ function App() {
       setVehicles((current) => [...current, createdVehicle].sort((a, b) => a.internalCode.localeCompare(b.internalCode)))
       setSelectedVehicleId(createdVehicle.id)
       setIsVehicleCenterOpen(true)
+      storeNavigation("unidades", activeOrganization.id, createdVehicle.id, true)
       setFormState(null)
       setFeedback("Unidad registrada correctamente.")
       setLoadError(null)
@@ -318,7 +364,7 @@ function App() {
           <button
             className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => {
-              navigateTo("unidades")
+              navigateTo("unidades", true)
               setIsVehicleCenterOpen(false)
             }}
             type="button"
@@ -348,9 +394,9 @@ function App() {
       </aside>
 
       <main className="content-shell">
-        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
+        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" ? (
-          <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades")} onFeedback={setFeedback} />
+          <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
             <p>Inicio</p>
@@ -361,7 +407,10 @@ function App() {
           <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
             {isVehicleCenterOpen && selectedVehicle ? (
               <VehicleDetail
-                onBackToFleet={() => setIsVehicleCenterOpen(false)}
+                onBackToFleet={() => {
+                  setIsVehicleCenterOpen(false)
+                  storeNavigation("unidades", activeOrganization?.id ?? null, null, false)
+                }}
                 onEdit={() => openEditForm(selectedVehicle)}
                 onFeedback={setFeedback}
                 onVehicleMileageSynced={syncVehicleMileage}
@@ -483,6 +532,7 @@ function App() {
                         onSelect={() => {
                           setSelectedVehicleId(vehicle.id)
                           setIsVehicleCenterOpen(true)
+                          storeNavigation("unidades", activeOrganization?.id ?? null, vehicle.id, true)
                         }}
                         vehicle={vehicle}
                       />
