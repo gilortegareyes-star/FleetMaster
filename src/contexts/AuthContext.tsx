@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean
   authorizationLoading: boolean
   isInviteSession: boolean
+  clearInviteSessionContext: () => void
   isFleetmasterAdmin: boolean
   organizationAccess: OrganizationAccess | null
   organizationAccessLoading: boolean
@@ -20,11 +21,46 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
+const inviteContextKey = "fleetmaster.invite-context"
+const invitationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+interface InviteContext {
+  invitationId: string
+  isInvite: true
+}
+
+export const getStoredInviteContext = (): InviteContext | null => {
+  if (typeof window === "undefined") return null
+  try {
+    const value = window.sessionStorage.getItem(inviteContextKey)
+    if (!value) return null
+    const context = JSON.parse(value) as Partial<InviteContext>
+    return context.isInvite === true && typeof context.invitationId === "string" && invitationPattern.test(context.invitationId)
+      ? { invitationId: context.invitationId, isInvite: true }
+      : null
+  } catch {
+    return null
+  }
+}
+
+// Capture invite context before Supabase can consume the callback URL.
+const captureInviteContext = () => {
+  if (typeof window === "undefined") return null
+  const invitationId = new URLSearchParams(window.location.search).get("invitation")
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
+  if (!invitationId || !invitationPattern.test(invitationId) || hashParams.get("type") !== "invite") return getStoredInviteContext()
+  const context: InviteContext = { invitationId, isInvite: true }
+  window.sessionStorage.setItem(inviteContextKey, JSON.stringify(context))
+  return context
+}
+
+const initialInviteContext = captureInviteContext()
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [authorizationLoading, setAuthorizationLoading] = useState(true)
-  const [isInviteSession, setIsInviteSession] = useState(false)
+  const [inviteSessionUserId, setInviteSessionUserId] = useState<string | null>(null)
   const [isFleetmasterAdmin, setIsFleetmasterAdmin] = useState(false)
   const [organizationAccess, setOrganizationAccess] = useState<OrganizationAccess | null>(null)
   const [organizationAccessLoading, setOrganizationAccessLoading] = useState(true)
@@ -40,20 +76,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isActive = true
     let sessionCheckId = 0
 
-    const hasInviteCallback = () => {
-      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
-      return hashParams.get("type") === "invite"
-    }
-    const inviteCallbackPresent = hasInviteCallback()
-
     const updateSession = async (nextSession: Session | null) => {
       const currentCheckId = ++sessionCheckId
       setSession(nextSession)
       setLoading(false)
-      if (inviteCallbackPresent) setIsInviteSession(true)
+      if (nextSession && initialInviteContext) setInviteSessionUserId((current) => current ?? nextSession.user.id)
 
       if (!nextSession) {
-        setIsInviteSession(false)
+        setInviteSessionUserId(null)
         setIsFleetmasterAdmin(false)
         setOrganizationAccess(null)
         setAuthorizationLoading(false)
@@ -89,7 +119,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const restoreSession = async () => {
       const code = new URLSearchParams(window.location.search).get("code")
-      if (inviteCallbackPresent) setIsInviteSession(true)
       if (code) {
         try {
           await supabase.auth.exchangeCodeForSession(code)
@@ -130,11 +159,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setOrganizationAccess(access)
   }
 
+  const clearInviteSessionContext = () => {
+    window.sessionStorage.removeItem(inviteContextKey)
+    setInviteSessionUserId(null)
+  }
+
   return (
     <AuthContext.Provider
       value={{
         authorizationLoading,
-        isInviteSession,
+        clearInviteSessionContext,
+        isInviteSession: Boolean(session && inviteSessionUserId === session.user.id),
         isFleetmasterAdmin,
         loading,
         organizationAccess,

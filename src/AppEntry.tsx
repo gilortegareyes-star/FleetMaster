@@ -5,7 +5,7 @@ import { InvitationOnboarding } from "./components/InvitationOnboarding"
 import { OrganizationAccountPage } from "./components/OrganizationAccountPage"
 import { getMyInvitation } from "./services/organizations"
 import type { InvitationContext } from "./types/organization"
-import { useAuth } from "./contexts/AuthContext"
+import { getStoredInviteContext, useAuth } from "./contexts/AuthContext"
 import App from "./App"
 import "./App.css"
 
@@ -21,8 +21,8 @@ function AccessDenied() {
 const invitationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export default function AppEntry() {
-  const { authorizationLoading, isFleetmasterAdmin, isInviteSession, loading, organizationAccess, organizationAccessLoading, refreshOrganizationAccess, session } = useAuth()
-  const [invitationId, setInvitationId] = useState(() => new URLSearchParams(window.location.search).get("invitation"))
+  const { authorizationLoading, clearInviteSessionContext, isFleetmasterAdmin, isInviteSession, loading, organizationAccess, organizationAccessLoading, refreshOrganizationAccess, session } = useAuth()
+  const [invitationId, setInvitationId] = useState(() => new URLSearchParams(window.location.search).get("invitation") ?? getStoredInviteContext()?.invitationId ?? null)
   const [invitation, setInvitation] = useState<InvitationContext | null>(null)
   const [invitationLoading, setInvitationLoading] = useState(false)
 
@@ -42,6 +42,7 @@ export default function AppEntry() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`)
     setInvitationId(null)
     setInvitation(null)
+    clearInviteSessionContext()
     void refreshOrganizationAccess()
   }
 
