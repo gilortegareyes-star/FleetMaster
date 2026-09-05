@@ -143,6 +143,7 @@ function App() {
       if (!activeOrganization) {
         setVehicles([])
         setSelectedVehicleId(null)
+        setIsRestoringNavigation(false)
         setIsLoading(false)
         return
       }
