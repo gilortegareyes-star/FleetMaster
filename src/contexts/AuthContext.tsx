@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react"
-import type { Session, User } from "@supabase/supabase-js"
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js"
 import { getSupabaseClient, isSupabaseConfigured } from "../services/supabase"
 import { getMyOrganizationAccess } from "../services/organizations"
 import type { OrganizationAccess } from "../types/organization"
@@ -78,10 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let isActive = true
     let sessionCheckId = 0
 
-    const updateSession = async (nextSession: Session | null) => {
+    const updateSession = async (event: AuthChangeEvent, nextSession: Session | null) => {
       const currentCheckId = ++sessionCheckId
+      const isBackgroundEvent = event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "USER_UPDATED"
       const isSameResolvedUser = Boolean(
-        nextSession && authorizationResolvedRef.current && currentUserIdRef.current === nextSession.user.id,
+        isBackgroundEvent &&
+        nextSession &&
+        authorizationResolvedRef.current &&
+        currentUserIdRef.current === nextSession.user.id,
       )
 
       currentUserIdRef.current = nextSession?.user.id ?? null
@@ -169,14 +173,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
       const { data } = await supabase.auth.getSession()
-      if (isActive) void updateSession(data.session)
+      if (isActive) void updateSession("INITIAL_SESSION", data.session)
     }
 
     void restoreSession()
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       window.setTimeout(() => {
-        if (isActive) void updateSession(nextSession)
+        if (isActive) void updateSession(event, nextSession)
       }, 0)
     })
 
