@@ -193,10 +193,22 @@ export const sendManagerInvitation = async (input: { organizationId: string; nam
 
   if (!error && data?.ok === true) return data
 
-  const code = data && typeof data === "object" && "code" in data ? String(data.code) : ""
+  let code = data && typeof data === "object" && "code" in data ? String(data.code) : ""
+  if (!code && error && typeof error === "object" && "context" in error) {
+    const context = error.context
+    if (context && typeof context === "object" && "clone" in context && typeof context.clone === "function") {
+      try {
+        const body = await (context as Response).clone().json() as { code?: unknown }
+        if (typeof body.code === "string") code = body.code
+      } catch {
+        // Keep the generic fallback when the error body is unavailable.
+      }
+    }
+  }
   const messages: Record<string, string> = {
     no_seats_available: "No hay lugares disponibles para este usuario.",
-    pending_invitation_exists: "Ya existe una invitación pendiente para este correo.",
+    seat_limit_reached: "No hay plazas disponibles para enviar esta invitación.",
+    pending_invitation_exists: "Ya existe una invitación pendiente para este Manager.",
     manager_already_exists: "La empresa ya tiene un Manager principal.",
     user_not_eligible: "El usuario no puede recibir esta invitación.",
     organization_suspended: "La empresa está suspendida.",
