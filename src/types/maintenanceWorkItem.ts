@@ -1,9 +1,16 @@
+export type MaintenanceWorkResult =
+  | "completed"
+  | "partially_completed"
+  | "follow_up_required"
+  | "not_completed"
+
 export interface MaintenanceWorkItem {
   id: string
   maintenanceId: string
   catalogItemId: string | null
   description: string
   notes: string | null
+  result: MaintenanceWorkResult | null
   sortOrder: number
   createdAt: string
   updatedAt: string

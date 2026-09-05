@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabase"
-import type { MaintenanceWorkItem, MaintenanceWorkItemDraft, MaintenanceWorkItemInput } from "../types/maintenanceWorkItem"
+import type { MaintenanceWorkItem, MaintenanceWorkItemDraft, MaintenanceWorkItemInput, MaintenanceWorkResult } from "../types/maintenanceWorkItem"
 
 interface MaintenanceWorkItemRow {
   id: string
@@ -7,6 +7,7 @@ interface MaintenanceWorkItemRow {
   catalog_item_id: string | null
   description: string
   notes: string | null
+  result: MaintenanceWorkResult | null
   sort_order: number
   created_at: string
   updated_at: string
@@ -18,6 +19,7 @@ const toMaintenanceWorkItem = (row: MaintenanceWorkItemRow): MaintenanceWorkItem
   catalogItemId: row.catalog_item_id,
   description: row.description,
   notes: row.notes,
+  result: row.result,
   sortOrder: row.sort_order,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
