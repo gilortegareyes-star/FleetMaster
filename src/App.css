@@ -3824,35 +3824,104 @@
 .invitation-error, .invitation-success { margin: 0; font-size: 13px; }
 .invitation-error { color: #a43d3d; }
 .invitation-success { color: #19734f; }
-.organization-account-shell { min-height: 100vh; padding: 48px 24px; background: #f5f8f6; }
+.organization-account-shell { min-height: 100vh; padding: 36px 24px 56px; background: #f5f8f6; }
 .organization-account-panel { margin: 0 auto; }
-.organization-account-header { padding-bottom: 28px; border-bottom: 1px solid #e3ebe6; }
-.organization-account-status { display: inline-flex; margin-top: 12px; padding: 5px 10px; border-radius: 999px; color: #176d4d; background: #e2f4e9; font-size: 12px; font-weight: 700; }
-.organization-account-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; padding: 26px 0 32px; }
-.organization-account-summary div { display: grid; gap: 5px; min-width: 0; }
-.organization-account-summary span, .organization-account-summary small { color: #75817b; font-size: 12px; }
-.organization-account-summary strong { overflow-wrap: anywhere; color: #253a30; font-size: 15px; }
-.organization-account-seat strong { color: #176d4d; }
-.organization-account-section-heading { align-items: center; margin-bottom: 14px; }
-.organization-account-users { display: grid; gap: 10px; }
-.organization-account-user { display: grid; grid-template-columns: minmax(180px, 1.5fr) 110px 150px 130px; align-items: center; gap: 14px; padding: 15px 16px; border: 1px solid #e0e9e4; border-radius: 6px; background: #fbfdfc; }
-.organization-account-user__identity { display: grid; gap: 4px; min-width: 0; }
-.organization-account-user__identity strong { color: #253a30; }
+.organization-account-topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.organization-account-brand { display: flex; align-items: center; gap: 11px; color: #1d3028; }
+.organization-account-brand__mark { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 8px; color: #fff; background: #173f38; font-size: 12px; font-weight: 850; letter-spacing: 0.03em; }
+.organization-account-brand div { display: grid; gap: 2px; }
+.organization-account-brand strong { font-size: 15px; }
+.organization-account-brand span { color: #68766f; font-size: 12px; }
+.organization-account-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, 0.82fr); min-height: 280px; overflow: hidden; border: 1px solid #dce5e0; border-radius: 8px; background: #fff; box-shadow: 0 18px 45px rgba(29, 54, 44, 0.08); }
+.organization-account-hero__copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 42px 44px; }
+.organization-account-hero__copy h1 { margin: 0; color: #1d3028; font-size: clamp(32px, 4vw, 48px); line-height: 1.08; }
+.organization-account-hero__copy > p:last-child { max-width: 440px; margin: 18px 0 0; color: #53615c; font-size: 15px; line-height: 1.6; }
+.organization-account-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 16px; padding: 6px 11px; border-radius: 999px; color: #176d4d; background: #e2f4e9; font-size: 12px; font-weight: 700; }
+.organization-account-status--suspended { color: #95501e; background: #fff0df; }
+.organization-account-hero__visual { position: relative; display: flex; min-height: 280px; align-items: flex-end; justify-content: space-between; overflow: hidden; padding: 28px 28px 34px; background: #edf6f2; }
+.organization-account-hero__visual::before { position: absolute; top: 34px; right: 30px; width: 170px; height: 72px; border: 1px solid rgba(78, 137, 116, 0.24); border-radius: 50%; content: ""; transform: rotate(-8deg); }
+.organization-account-hero__visual::after { position: absolute; top: 70px; left: 40px; width: 90px; height: 1px; background: rgba(78, 137, 116, 0.28); box-shadow: 32px 13px rgba(78, 137, 116, 0.22), 76px -9px rgba(78, 137, 116, 0.18); content: ""; }
+.organization-account-hero__message { position: relative; z-index: 1; display: grid; gap: 8px; max-width: 205px; color: #1c4f44; }
+.organization-account-hero__message strong { font-size: 18px; line-height: 1.25; }
+.organization-account-hero__message span { color: #648078; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; }
+.organization-account-fleet { position: relative; z-index: 1; display: flex; align-items: flex-end; gap: 9px; color: #267967; }
+.organization-account-fleet svg { filter: drop-shadow(0 7px 4px rgba(34, 92, 76, 0.12)); }
+.organization-account-road { position: absolute; right: -10%; bottom: 22px; left: -10%; height: 1px; background: #8db5a8; transform: rotate(-7deg); }
+.organization-account-road--two { bottom: 58px; opacity: 0.45; transform: rotate(8deg); }
+.organization-account-metrics { margin-top: 24px; padding: 25px 28px 28px; border: 1px solid #dce5e0; border-radius: 8px; background: #fff; }
+.organization-account-subheading { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin-bottom: 19px; }
+.organization-account-subheading .organization-account-kicker { margin: 0; }
+.organization-account-subheading h2 { margin: 0; color: #1d3028; font-size: 17px; }
+.organization-account-metrics__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
+.organization-account-metric { display: flex; gap: 12px; min-width: 0; padding: 2px 22px; border-right: 1px solid #e8efeb; }
+.organization-account-metric:first-child { padding-left: 0; }
+.organization-account-metric:last-child { border-right: 0; padding-right: 0; }
+.organization-account-metric__icon, .organization-account-section-icon { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 8px; color: #1f7567; background: #e7f4ef; }
+.organization-account-metric > div { display: grid; gap: 4px; min-width: 0; }
+.organization-account-metric > div > span:first-child { color: #75817b; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; }
+.organization-account-metric strong { overflow-wrap: anywhere; color: #253a30; font-size: 17px; }
+.organization-account-metric small { color: #68766f; font-size: 12px; }
+.organization-account-progress { display: block; width: 100%; height: 5px; margin-top: 4px; overflow: hidden; border-radius: 999px; background: #e8efeb; }
+.organization-account-progress > span { display: block; height: 100%; border-radius: inherit; background: #2a8874; }
+.organization-account-card { margin-top: 24px; padding: 27px 28px; border: 1px solid #dce5e0; border-radius: 8px; background: #fff; }
+.organization-account-section-heading { align-items: center; margin-bottom: 25px; }
+.organization-account-section-heading__title { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.organization-account-section-heading__title h2 { margin: 0; color: #1d3028; font-size: 20px; }
+.organization-account-section-heading__title p { margin: 5px 0 0; color: #68766f; font-size: 13px; }
+.organization-account-section-heading__actions { display: flex; align-items: center; gap: 16px; }
+.organization-account-section-heading__actions strong { color: #53615c; font-size: 13px; white-space: nowrap; }
+.organization-account-section-heading__actions .button { padding: 9px 13px; }
+.organization-account-user-table { overflow: hidden; }
+.organization-account-user-table__header, .organization-account-user { display: grid; grid-template-columns: minmax(210px, 1.6fr) minmax(100px, 0.7fr) minmax(160px, 1fr) minmax(130px, 0.8fr); align-items: center; gap: 14px; }
+.organization-account-user-table__header { padding: 0 16px 11px; border-bottom: 1px solid #e3ebe6; color: #75817b; font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+.organization-account-users { display: grid; gap: 0; }
+.organization-account-user { padding: 15px 16px; border-bottom: 1px solid #edf2ef; }
+.organization-account-user:last-child { border-bottom: 0; }
+.organization-account-user__identity { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.organization-account-user__avatar { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 50%; color: #1c5d50; background: #dcefe8; font-size: 11px; font-weight: 850; }
+.organization-account-user__identity > div { display: grid; gap: 3px; min-width: 0; }
+.organization-account-user__identity strong { overflow-wrap: anywhere; color: #253a30; font-size: 14px; }
 .organization-account-user__identity span, .organization-account-user > small { overflow-wrap: anywhere; color: #68766f; font-size: 12px; }
-.user-status { font-size: 12px; font-weight: 700; }
+.organization-account-user__role { color: #53615c; font-size: 13px; }
+.user-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.user-status__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .user-status--active { color: #176d4d; }
 .user-status--pending { color: #9a6c18; }
-.organization-account-invite { display: grid; gap: 16px; max-width: 520px; margin-top: 32px; padding-top: 26px; border-top: 1px solid #e3ebe6; }
-.organization-account-users--client { display: flex; align-items: center; gap: 10px; padding: 18px; color: #68766f; border: 1px solid #e0e9e4; border-radius: 6px; }
+.user-status--disabled { color: #8b5757; }
+.organization-account-empty { margin: 0; padding: 24px 16px; color: #68766f; font-size: 13px; }
+.organization-account-invite-card { margin-bottom: 0; }
+.organization-account-invite { display: grid; gap: 20px; max-width: none; margin: 0; padding: 0; border: 0; }
+.organization-account-invite__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.organization-account-invite__notice { display: flex; align-items: flex-start; gap: 9px; padding: 12px 14px; border: 1px solid #d9ebe3; border-radius: 6px; color: #527067; background: #f1f8f5; font-size: 12px; line-height: 1.5; }
+.organization-account-invite__notice svg { flex: 0 0 auto; color: #287967; }
+.organization-account-invite__footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.organization-account-invite__hint { color: #75817b; font-size: 12px; }
+.organization-account-users--client { display: flex; align-items: center; gap: 10px; margin-top: 24px; padding: 18px; color: #68766f; border: 1px solid #e0e9e4; border-radius: 6px; }
 .organization-account-users--client p { margin: 0; }
 
 @media (max-width: 760px) {
   .invitation-panel, .organization-account-panel { padding: 24px 20px; }
-  .organization-account-header { align-items: stretch; flex-direction: column; }
-  .organization-account-header .button { align-self: flex-start; }
-  .organization-account-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .organization-account-user { grid-template-columns: minmax(0, 1fr) auto; }
-  .organization-account-user > small { grid-column: 1 / -1; }
+  .organization-account-shell { padding: 24px 14px 40px; }
+  .organization-account-topbar { align-items: flex-start; }
+  .organization-account-topbar .button { padding: 9px 11px; }
+  .organization-account-hero { grid-template-columns: 1fr; }
+  .organization-account-hero__copy { padding: 32px 26px; }
+  .organization-account-hero__visual { min-height: 220px; }
+  .organization-account-metrics, .organization-account-card { padding: 22px 20px; }
+  .organization-account-metrics__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; }
+  .organization-account-metric:nth-child(2) { border-right: 0; }
+  .organization-account-metric:nth-child(3) { padding-left: 0; }
+  .organization-account-metric:nth-child(4) { padding-right: 0; }
+  .organization-account-section-heading { align-items: flex-start; }
+  .organization-account-section-heading__actions { flex-direction: column; align-items: flex-end; gap: 8px; }
+  .organization-account-user-table__header { display: none; }
+  .organization-account-user { grid-template-columns: minmax(0, 1fr) auto; padding-inline: 0; }
+  .organization-account-user__role { grid-column: 1; padding-left: 45px; }
+  .organization-account-user .user-status { grid-column: 2; grid-row: 1 / span 2; }
+  .organization-account-user > small { grid-column: 1 / -1; padding-left: 45px; }
+  .organization-account-invite__fields { grid-template-columns: 1fr; }
+  .organization-account-invite__footer { align-items: stretch; flex-direction: column; }
+  .organization-account-invite__footer .button { align-self: flex-end; }
 }
 
 .maintenance-economic-editor {
