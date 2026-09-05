@@ -200,10 +200,10 @@ function QuickProviderModal({ isSaving, error, onClose, onSubmit }: { isSaving: 
   return (
     <div aria-modal="true" className="modal-backdrop maintenance-entry-modal-backdrop" role="dialog">
       <section className="maintenance-provider-modal">
-        <header className="maintenance-entry-modal__header"><div><span>Registro de ingreso</span><h2>Nuevo taller o proveedor</h2></div><button aria-label="Cerrar ventana" className="icon-button" onClick={onClose} type="button"><X aria-hidden="true" size={19} /></button></header>
+        <header className="maintenance-entry-modal__header"><div><h2>Nuevo taller o proveedor</h2></div><button aria-label="Cerrar ventana" className="icon-button" onClick={onClose} type="button"><X aria-hidden="true" size={19} /></button></header>
         <form className="maintenance-provider-modal__body" onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSubmit(name, type) }}>
-          <label><span>Nombre *</span><input autoFocus onChange={(event) => setName(event.target.value)} required value={name} /></label>
-          <label><span>Tipo *</span><select onChange={(event) => setType(event.target.value as MaintenanceProviderType)} value={type}>{maintenanceProviderTypes.map((providerType) => <option key={providerType} value={providerType}>{providerTypeLabels[providerType]}</option>)}</select></label>
+          <label className="field"><span>Nombre *</span><input autoFocus onChange={(event) => setName(event.target.value)} required value={name} /></label>
+          <label className="field"><span>Tipo *</span><select onChange={(event) => setType(event.target.value as MaintenanceProviderType)} value={type}>{maintenanceProviderTypes.map((providerType) => <option key={providerType} value={providerType}>{providerTypeLabels[providerType]}</option>)}</select></label>
           {error ? <div className="form-banner maintenance-report__error">{error}</div> : null}
           <footer className="maintenance-entry-modal__footer"><button className="button button--secondary" onClick={onClose} type="button">Cancelar</button><button className="button button--primary" disabled={isSaving} type="submit">{isSaving ? "Guardando..." : "Guardar proveedor"}</button></footer>
         </form>

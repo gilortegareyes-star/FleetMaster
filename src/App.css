@@ -5957,8 +5957,12 @@
 }
 
 .maintenance-provider-modal {
-  width: min(430px, calc(100vw - 32px));
-  overflow: hidden;
+  width: min(440px, calc(100vw - 32px));
+  height: auto;
+  max-height: calc(100vh - 32px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-radius: 14px;
   background: #fff;
   box-shadow: 0 20px 55px rgba(16, 24, 40, 0.22);
@@ -5966,8 +5970,25 @@
 
 .maintenance-provider-modal__body {
   display: grid;
-  gap: 18px;
-  padding-top: 22px;
+  gap: 16px;
+  padding: 20px 24px 22px;
+}
+
+.maintenance-provider-modal__body .field {
+  gap: 7px;
+}
+
+.maintenance-provider-modal__body .field input,
+.maintenance-provider-modal__body .field select {
+  min-height: 42px;
+}
+
+.maintenance-provider-modal .maintenance-entry-modal__header {
+  padding: 18px 24px;
+}
+
+.maintenance-provider-modal .maintenance-entry-modal__header h2 {
+  margin: 0;
 }
 
 @media (max-width: 700px) {
