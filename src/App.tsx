@@ -26,6 +26,25 @@ interface StoredNavigation {
   isVehicleCenterOpen?: boolean
 }
 
+const hasPendingVehicleRestore = (userId: string | undefined) => {
+  if (!userId) return false
+
+  try {
+    const raw = window.sessionStorage.getItem(navigationStorageKey)
+    if (!raw) return false
+
+    const stored = JSON.parse(raw) as Partial<StoredNavigation>
+    return (
+      stored.userId === userId &&
+      typeof stored.organizationId === "string" &&
+      typeof stored.selectedVehicleId === "string" &&
+      stored.isVehicleCenterOpen === true
+    )
+  } catch {
+    return false
+  }
+}
+
 const initialFilters: VehicleFilters = {
   query: "",
   status: "Todos",
@@ -40,6 +59,7 @@ function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const [isVehicleCenterOpen, setIsVehicleCenterOpen] = useState(false)
+  const [isRestoringNavigation, setIsRestoringNavigation] = useState(() => hasPendingVehicleRestore(user?.id))
   const [filters, setFilters] = useState<VehicleFilters>(initialFilters)
   const [formState, setFormState] = useState<FormState>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -69,11 +89,15 @@ function App() {
     if (!user) {
       window.sessionStorage.removeItem(navigationStorageKey)
       setActiveView("unidades")
+      setIsRestoringNavigation(false)
       return
     }
 
     const raw = window.sessionStorage.getItem(navigationStorageKey)
-    if (!raw) return
+    if (!raw) {
+      setIsRestoringNavigation(false)
+      return
+    }
 
     try {
       const stored = JSON.parse(raw) as Partial<StoredNavigation>
@@ -87,6 +111,7 @@ function App() {
       ) {
         window.sessionStorage.removeItem(navigationStorageKey)
         setActiveView("unidades")
+        setIsRestoringNavigation(false)
         return
       }
 
@@ -96,13 +121,16 @@ function App() {
         } else {
           window.sessionStorage.removeItem(navigationStorageKey)
           setActiveView("unidades")
+          setIsRestoringNavigation(false)
         }
       } else if (stored.organizationId === null) {
         setActiveView(stored.activeView as ActiveView)
+        setIsRestoringNavigation(false)
       }
     } catch {
       window.sessionStorage.removeItem(navigationStorageKey)
       setActiveView("unidades")
+      setIsRestoringNavigation(false)
     }
   }, [activeOrganization?.id, user?.id])
 
@@ -122,6 +150,7 @@ function App() {
       if (!isSupabaseConfigured()) {
         setVehicles([])
         setLoadError("Configura Supabase para cargar y registrar unidades.")
+        setIsRestoringNavigation(false)
         setIsLoading(false)
         return
       }
@@ -167,9 +196,11 @@ function App() {
             window.sessionStorage.removeItem(navigationStorageKey)
           }
         }
+        setIsRestoringNavigation(false)
       } catch (error) {
         if (!isActive) return
         setLoadError(error instanceof Error ? error.message : "No se pudieron cargar las unidades.")
+        setIsRestoringNavigation(false)
       } finally {
         if (isActive) setIsLoading(false)
       }
@@ -191,6 +222,7 @@ function App() {
     setSaveError(null)
     setFeedback(null)
     setPendingDocumentVehicleIds(null)
+    setIsRestoringNavigation(hasPendingVehicleRestore(user?.id))
   }, [activeOrganization?.id])
 
   const vehicleIdsKey = useMemo(() => vehicles.map((vehicle) => vehicle.id).join(","), [vehicles])
@@ -395,7 +427,9 @@ function App() {
 
       <main className="content-shell">
         {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
-        {activeView === "administracion" ? (
+        {isRestoringNavigation ? (
+          <div className="state-card" role="status">Restaurando navegación...</div>
+        ) : activeView === "administracion" ? (
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
         ) : activeView === "inicio" ? (
           <section className="home-panel">
