@@ -492,7 +492,7 @@ function App() {
                 <span>Fuera de servicio</span>
                 <strong>{fleetStats.offline}</strong>
               </div>
-              <div className="fleet-metric">
+              <div className={vehiclesWithDocumentAlerts > 0 ? "fleet-metric fleet-metric--warning" : "fleet-metric"}>
                 <span>Documentos pendientes</span>
                 <strong>{vehiclesWithDocumentAlerts}</strong>
               </div>

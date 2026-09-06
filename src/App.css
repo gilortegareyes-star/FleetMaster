@@ -884,6 +884,16 @@
   line-height: 1;
 }
 
+.fleet-metric--warning {
+  border-color: #f1d99e;
+  background: #fff2ce;
+}
+
+.fleet-metric--warning span,
+.fleet-metric--warning strong {
+  color: #90610d;
+}
+
 .fleet-layout {
   min-width: 0;
 }
