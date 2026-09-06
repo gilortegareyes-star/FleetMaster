@@ -48,7 +48,7 @@ const readStoredOrganization = (userId: string): ActiveOrganization | null => {
 }
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { isFleetmasterAdmin, organizationAccess, user } = useAuth()
   const [activeOrganization, setActiveOrganizationState] = useState<ActiveOrganization | null>(null)
 
   useEffect(() => {
@@ -58,8 +58,17 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    if (!isFleetmasterAdmin && organizationAccess) {
+      setActiveOrganizationState({
+        id: organizationAccess.organizationId,
+        name: organizationAccess.organizationName,
+        status: "active",
+      })
+      return
+    }
+
     setActiveOrganizationState(readStoredOrganization(user.id))
-  }, [user?.id])
+  }, [isFleetmasterAdmin, organizationAccess, user?.id])
 
   const setActiveOrganization = (organization: ActiveOrganization) => {
     if (!user || organization.status !== "active") return

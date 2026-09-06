@@ -129,11 +129,11 @@ export const listVehicles = async (organizationId?: string) => {
   }
 }
 
-export const createVehicle = async (payload: VehiclePayload, organizationId?: string) => {
+export const createVehicle = async (payload: VehiclePayload, adminOrganizationId?: string) => {
   try {
     const row = toVehicleRow(payload)
     const { data, error } = await getSupabaseClient().rpc("create_vehicle", {
-      p_organization_id: organizationId ?? null,
+      p_organization_id: adminOrganizationId ?? null,
       p_internal_code: row.internal_code,
       p_brand: row.brand,
       p_model: row.model,

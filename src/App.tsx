@@ -133,7 +133,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
       }
 
       try {
-        const items = await listVehicles(activeOrganization.id)
+        const items = await listVehicles(isFleetmasterAdmin ? activeOrganization.id : undefined)
         if (!isActive) return
         setVehicles(items)
 
@@ -327,7 +327,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
         throw new Error("Entra a una empresa activa para registrar una unidad.")
       }
 
-      const createdVehicle = await createVehicle(payload, activeOrganization.id)
+      const createdVehicle = await createVehicle(payload, isFleetmasterAdmin ? activeOrganization.id : undefined)
       setVehicles((current) => [...current, createdVehicle].sort((a, b) => a.internalCode.localeCompare(b.internalCode)))
       setSelectedVehicleId(createdVehicle.id)
       setIsVehicleCenterOpen(true)
