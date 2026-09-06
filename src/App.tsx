@@ -391,7 +391,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
           <span>FleetMaster II</span>
         </div>
         <nav aria-label="Principal">
-          <button
+          {!isFleetmasterAdmin ? <button
             className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => {
               navigateTo("unidades", true)
@@ -401,7 +401,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
           >
             <CarFront aria-hidden="true" size={19} />
             Flota
-          </button>
+          </button> : null}
           {isFleetmasterAdmin ? <button
             className={activeView === "administracion" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("administracion")}
@@ -410,14 +410,14 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
             <Settings2 aria-hidden="true" size={19} />
             Administración{supportUnreadTickets.length > 0 ? <span className="nav-item__badge">{supportUnreadTickets.length}</span> : null}
           </button> : null}
-          <button
+          {!isFleetmasterAdmin ? <button
             className={activeView === "proveedores" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("proveedores")}
             type="button"
           >
             <Wrench aria-hidden="true" size={19} />
             Talleres y proveedores
-          </button>
+          </button> : null}
           {!isFleetmasterAdmin ? <button
             className={activeView === "soporte" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("soporte", true)}
