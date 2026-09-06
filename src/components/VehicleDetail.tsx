@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   ClipboardCheck,
   Edit3,
@@ -315,6 +316,22 @@ export function VehicleDetail({
     ? [registrationType]
     : requiredCirculationTypes
   const registrationPanelTypes = registrationViewTypes.length > 0 ? registrationViewTypes : [null]
+  const registrationDocumentExists = Boolean(registrationCards.state || registrationCards.federal)
+  const insuranceAction = !insurancePolicy
+    ? "Cargar póliza"
+    : insuranceStatus.tone === "current"
+      ? "Ver póliza"
+      : "Actualizar póliza"
+  const registrationAction = registrationComplete
+    ? "Ver tarjeta"
+    : registrationDocumentExists
+      ? "Actualizar tarjeta"
+      : "Cargar tarjeta"
+  const inspectionAction = !vehicleInspection
+    ? "Registrar"
+    : inspectionStatus.tone === "warning" || inspectionStatus.tone === "expired"
+      ? "Actualizar verificación"
+      : "Ver verificación"
 
   const documentShortcuts = [
     {
@@ -327,6 +344,7 @@ export function VehicleDetail({
       isRequired: true,
       isPending: !insuranceComplete,
       icon: <ShieldCheck aria-hidden="true" size={17} />,
+      action: insuranceAction,
       onClick: () => setActiveTab("insurancePolicy"),
     },
     {
@@ -341,6 +359,7 @@ export function VehicleDetail({
       isRequired: true,
       isPending: !registrationComplete,
       icon: <IdCard aria-hidden="true" size={17} />,
+      action: registrationAction,
       onClick: openRegistrationDocuments,
     },
     {
@@ -365,6 +384,7 @@ export function VehicleDetail({
       isRequired: false,
       isPending: false,
       icon: <ClipboardCheck aria-hidden="true" size={17} />,
+      action: inspectionAction,
       onClick: () => setActiveTab("vehicleInspection"),
     },
   ]
@@ -567,6 +587,7 @@ export function VehicleDetail({
                 </div>
               ) : documentShortcuts.map((item) => (
                 <button
+                  aria-label={`${item.action} ${item.label}`}
                   className="document-shortcut"
                   key={item.label}
                   onClick={item.onClick}
@@ -581,6 +602,10 @@ export function VehicleDetail({
                   {item.status ? (
                     <span className={`document-status document-status--${item.statusTone}`}>{item.status}</span>
                   ) : null}
+                  <span className="document-shortcut__action">
+                    {item.action}
+                    <ArrowRight aria-hidden="true" size={15} />
+                  </span>
                 </button>
               ))}
             </div>
