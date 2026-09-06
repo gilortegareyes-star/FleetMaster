@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabase"
-import type { FeedbackCategory, FeedbackPriority, FeedbackStatus, FeedbackTicket, FeedbackTicketMessage } from "../types/feedback"
+import type { FeedbackAdminUnreadOrganization, FeedbackCategory, FeedbackPriority, FeedbackStatus, FeedbackTicket, FeedbackTicketMessage, FeedbackUnreadTicket } from "../types/feedback"
 
 interface FeedbackTicketRow {
   id: string
@@ -26,13 +26,24 @@ interface FeedbackMessageRow {
 }
 
 interface ProfileRow { id: string; display_name: string | null }
+interface FeedbackUnreadTicketRow { ticket_id: string; organization_id: string; unread_count: number; last_activity_at: string }
+interface FeedbackAdminUnreadOrganizationRow { organization_id: string; organization_name: string; unread_count: number; last_activity_at: string }
 
-const feedbackError = (error: { message?: string }) => {
+const feedbackError = (error: { code?: string; message?: string; details?: string; hint?: string }) => {
   const message = error.message?.toLowerCase() ?? ""
-  if (message.includes("closed tickets")) return new Error("Los tickets cerrados no aceptan nuevas respuestas.")
-  if (message.includes("active organization membership")) return new Error("Tu cuenta no tiene una organización activa.")
-  if (message.includes("insufficient organization permissions")) return new Error("No tienes acceso a este ticket.")
-  return new Error("No se pudo completar la operación de Feedback.")
+  const friendlyMessage = message.includes("closed tickets")
+    ? "Los tickets cerrados no aceptan nuevas respuestas."
+    : message.includes("active organization membership")
+      ? "Tu cuenta no tiene una organización activa."
+      : message.includes("insufficient organization permissions")
+        ? "No tienes acceso a este ticket."
+        : "No se pudo completar la operación de Feedback."
+  return Object.assign(new Error(friendlyMessage), {
+    code: error.code,
+    rawMessage: error.message,
+    details: error.details,
+    hint: error.hint,
+  })
 }
 
 const loadProfileNames = async (ids: string[]) => {
@@ -100,4 +111,33 @@ export const addFeedbackTicketMessage = async (ticketId: string, message: string
   const { data, error } = await getSupabaseClient().rpc("add_feedback_ticket_message", { p_ticket_id: ticketId, p_message: message })
   if (error) throw feedbackError(error)
   return data as FeedbackMessageRow
+}
+
+const toUnreadTicket = (row: FeedbackUnreadTicketRow): FeedbackUnreadTicket => ({
+  ticketId: row.ticket_id,
+  organizationId: row.organization_id,
+  unreadCount: Number(row.unread_count),
+  lastActivityAt: row.last_activity_at,
+})
+
+export const listFeedbackUnreadTickets = async () => {
+  const { data, error } = await getSupabaseClient().rpc("get_feedback_unread_tickets")
+  if (error) throw feedbackError(error)
+  return ((data ?? []) as FeedbackUnreadTicketRow[]).map(toUnreadTicket)
+}
+
+export const markFeedbackTicketRead = async (ticketId: string) => {
+  const { error } = await getSupabaseClient().rpc("mark_feedback_ticket_read", { p_ticket_id: ticketId })
+  if (error) throw feedbackError(error)
+}
+
+export const listFeedbackAdminUnreadSummary = async () => {
+  const { data, error } = await getSupabaseClient().rpc("get_feedback_admin_unread_summary")
+  if (error) throw feedbackError(error)
+  return ((data ?? []) as FeedbackAdminUnreadOrganizationRow[]).map((row): FeedbackAdminUnreadOrganization => ({
+    organizationId: row.organization_id,
+    organizationName: row.organization_name,
+    unreadCount: Number(row.unread_count),
+    lastActivityAt: row.last_activity_at,
+  }))
 }

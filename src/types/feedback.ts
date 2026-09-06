@@ -32,3 +32,17 @@ export interface FeedbackTicketMessage {
   message: string
   createdAt: string
 }
+
+export interface FeedbackUnreadTicket {
+  ticketId: string
+  organizationId: string
+  unreadCount: number
+  lastActivityAt: string
+}
+
+export interface FeedbackAdminUnreadOrganization {
+  organizationId: string
+  organizationName: string
+  unreadCount: number
+  lastActivityAt: string
+}

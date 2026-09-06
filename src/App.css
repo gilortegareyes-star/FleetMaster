@@ -7295,6 +7295,15 @@
 .support-ticket-modal__form { display: grid; gap: 16px; }
 .support-ticket-modal__form textarea { resize: vertical; min-height: 130px; }
 .support-ticket-modal__footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.nav-item__badge,
+.support-ticket__unread,
+.organization-support-summary em { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; color: #176d4d; background: #e2f4e9; font-size: 11px; font-style: normal; font-weight: 800; }
+.nav-item__badge { margin-left: auto; }
+.support-ticket__top { align-items: center; }
+.support-ticket__unread { min-width: 0; height: 18px; padding-inline: 6px; font-size: 10px; }
+.organization-support-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 20px; }
+.organization-support-summary span { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #dce5e0; border-radius: 6px; color: #53615c; background: #fbfdfc; font-size: 12px; }
+.organization-support-summary strong { color: #34483e; }
 @media (max-width: 760px) {
   .feedback-panel, .feedback-admin-panel { padding: 22px 20px; }
   .feedback-panel__header, .feedback-admin-panel__header { flex-direction: column; }

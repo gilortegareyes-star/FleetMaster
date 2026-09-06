@@ -7,13 +7,15 @@ import { VehicleDetail } from "./components/VehicleDetail"
 import { VehicleForm } from "./components/VehicleForm"
 import { getVehicleDocumentAlerts } from "./services/vehicleDocuments"
 import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
-import { isSupabaseConfigured } from "./services/supabase"
+import { getSupabaseClient, isSupabaseConfigured } from "./services/supabase"
 import type { Vehicle, VehiclePayload } from "./types/vehicle"
 import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 import { useOrganization } from "./contexts/OrganizationContext"
 import { MaintenanceProvidersPage } from "./components/MaintenanceProvidersPage"
 import { FeedbackPanel } from "./components/FeedbackPanel"
+import { listFeedbackAdminUnreadSummary, listFeedbackUnreadTickets } from "./services/feedback"
+import type { FeedbackAdminUnreadOrganization, FeedbackUnreadTicket } from "./types/feedback"
 
 type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores" | "soporte"
 type FleetViewMode = "cards" | "table"
@@ -46,6 +48,8 @@ function App() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [supportUnreadTickets, setSupportUnreadTickets] = useState<FeedbackUnreadTicket[]>([])
+  const [supportUnreadOrganizations, setSupportUnreadOrganizations] = useState<FeedbackAdminUnreadOrganization[]>([])
   const [documentAlertsByVehicle, setDocumentAlertsByVehicle] = useState<Map<string, import("./services/vehicleDocuments").DocumentAlert[]> | null>(null)
   const [fleetView, setFleetView] = useState<FleetViewMode>(() => {
     const stored = window.sessionStorage.getItem(fleetViewStorageKey)
@@ -241,6 +245,101 @@ function App() {
     return () => window.clearTimeout(timeoutId)
   }, [feedback])
 
+  const refreshSupportUnread = async () => {
+    const safeError = (error: unknown) => {
+      if (!error || typeof error !== "object") return {}
+      const candidate = error as { code?: unknown; message?: unknown; rawMessage?: unknown; details?: unknown; hint?: unknown }
+      return {
+        ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
+        ...(typeof candidate.rawMessage === "string" ? { message: candidate.rawMessage } : typeof candidate.message === "string" ? { message: candidate.message } : {}),
+        ...(typeof candidate.details === "string" ? { details: candidate.details } : {}),
+        ...(typeof candidate.hint === "string" ? { hint: candidate.hint } : {}),
+      }
+    }
+
+    if (isFleetmasterAdmin) {
+      try {
+        const [tickets, organizations] = await Promise.all([
+          listFeedbackUnreadTickets().then((result) => {
+            console.debug("[FLEET-5E DEBUG] unread tickets response", { count: result.length, ticketIds: result.map((ticket) => ticket.ticketId) })
+            return result
+          }).catch((error) => {
+            console.error("[FLEET-5E DEBUG] unread tickets error", safeError(error))
+            throw error
+          }),
+          listFeedbackAdminUnreadSummary().then((result) => {
+            console.debug("[FLEET-5E DEBUG] admin unread summary response", { count: result.length, organizations: result.map((organization) => ({ organizationId: organization.organizationId, unreadCount: organization.unreadCount })) })
+            return result
+          }).catch((error) => {
+            console.error("[FLEET-5E DEBUG] admin unread summary error", safeError(error))
+            throw error
+          }),
+        ])
+        setSupportUnreadTickets(tickets)
+        setSupportUnreadOrganizations(organizations)
+      } catch {
+        setSupportUnreadTickets([])
+        setSupportUnreadOrganizations([])
+      }
+      return
+    }
+
+    if (activeOrganization) {
+      try {
+        const tickets = await listFeedbackUnreadTickets()
+        console.debug("[FLEET-5E DEBUG] unread tickets response", { count: tickets.length, ticketIds: tickets.map((ticket) => ticket.ticketId), organizationId: activeOrganization.id })
+        setSupportUnreadTickets(tickets)
+      } catch (error) {
+        console.error("[FLEET-5E DEBUG] unread tickets error", safeError(error))
+        setSupportUnreadTickets([])
+      }
+      setSupportUnreadOrganizations([])
+      return
+    }
+
+    setSupportUnreadTickets([])
+    setSupportUnreadOrganizations([])
+  }
+
+  useEffect(() => {
+    let active = true
+    if (user) {
+      console.debug("[FLEET-5E DEBUG] unread identity", { role: isFleetmasterAdmin ? "fleetmaster_admin" : "organization_user", isFleetmasterAdmin, organizationId: activeOrganization?.id ?? null })
+    }
+    void refreshSupportUnread()
+
+    if (!user || (!isFleetmasterAdmin && !activeOrganization)) {
+      return () => {
+        active = false
+      }
+    }
+
+    const channel = getSupabaseClient().channel(`feedback-notifications-${user.id}-${isFleetmasterAdmin ? "admin" : activeOrganization?.id}`)
+    const ticketChanges = channel.on(
+      "postgres_changes",
+      isFleetmasterAdmin
+        ? { event: "INSERT", schema: "public", table: "feedback_tickets" }
+        : { event: "INSERT", schema: "public", table: "feedback_tickets", filter: `organization_id=eq.${activeOrganization?.id}` },
+      () => {
+        if (active) void refreshSupportUnread()
+      },
+    )
+    ticketChanges.on(
+      "postgres_changes",
+      isFleetmasterAdmin
+        ? { event: "INSERT", schema: "public", table: "feedback_ticket_messages" }
+        : { event: "INSERT", schema: "public", table: "feedback_ticket_messages", filter: `organization_id=eq.${activeOrganization?.id}` },
+      () => {
+        if (active) void refreshSupportUnread()
+      },
+    ).subscribe()
+
+    return () => {
+      active = false
+      void getSupabaseClient().removeChannel(channel)
+    }
+  }, [activeOrganization?.id, isFleetmasterAdmin, user?.id])
+
   const filteredVehicles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
 
@@ -407,7 +506,7 @@ function App() {
             type="button"
           >
             <Settings2 aria-hidden="true" size={19} />
-            Administración
+            Administración{supportUnreadTickets.length > 0 ? <span className="nav-item__badge">{supportUnreadTickets.length}</span> : null}
           </button> : null}
           <button
             className={activeView === "proveedores" ? "nav-item nav-item--active" : "nav-item"}
@@ -423,7 +522,7 @@ function App() {
             type="button"
           >
             <Headphones aria-hidden="true" size={19} />
-            Soporte
+            Soporte{supportUnreadTickets.length > 0 ? <span className="nav-item__badge">{supportUnreadTickets.length}</span> : null}
           </button> : null}
         </nav>
         <div className="sidebar__footer">
@@ -441,11 +540,11 @@ function App() {
       <main className="content-shell">
         {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" && isFleetmasterAdmin ? (
-          <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
+          <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} onRefreshSupportUnread={refreshSupportUnread} supportUnreadOrganizations={supportUnreadOrganizations} supportUnreadTicketIds={supportUnreadTickets.map((ticket) => ticket.ticketId)} />
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
         ) : activeView === "soporte" ? (
-          <FeedbackPanel />
+          <FeedbackPanel onRefreshUnread={refreshSupportUnread} unreadTickets={supportUnreadTickets} />
         ) : (
           <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
             {isVehicleCenterOpen && selectedVehicle ? (
