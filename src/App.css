@@ -174,7 +174,7 @@
 .organization-row {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 14px;
   width: 100%;
@@ -224,6 +224,28 @@
 .organization-row__arrow {
   color: #8b9994;
   font-size: 1.2rem;
+}
+
+.organization-row__delete {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #8b9994;
+  cursor: pointer;
+}
+
+.organization-row__delete:hover {
+  background: #fbefef;
+  color: #a33a3a;
+}
+
+.organization-row__delete:focus-visible {
+  outline: 2px solid #16849d;
+  outline-offset: 2px;
 }
 
 .admin-empty-state {
@@ -535,6 +557,110 @@
   margin: 0;
   color: #a33a3a;
   font-size: 0.86rem;
+}
+
+.organization-delete-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(13, 25, 21, 0.48);
+  backdrop-filter: blur(4px);
+}
+
+.organization-delete-modal {
+  width: min(540px, 100%);
+  max-height: min(720px, calc(100dvh - 48px));
+  overflow: auto;
+  border: 1px solid #e3e9e6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(31, 45, 39, 0.2);
+}
+
+.organization-delete-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 26px 28px 20px;
+  border-bottom: 1px solid #e3e9e6;
+}
+
+.organization-delete-modal h2 {
+  margin: 0;
+  color: #17211d;
+  font-size: 1.4rem;
+}
+
+.organization-delete-modal__body {
+  display: grid;
+  gap: 16px;
+  padding: 24px 28px;
+  color: #4e625b;
+  line-height: 1.5;
+}
+
+.organization-delete-modal__body p {
+  margin: 0;
+}
+
+.organization-delete-summary {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid #d9e8e3;
+  border-radius: 6px;
+  background: #f5faf8;
+  color: #52645e;
+}
+
+.organization-delete-summary strong {
+  color: #17211d;
+}
+
+.organization-delete-warning {
+  color: #8d3d3d;
+}
+
+.organization-delete-modal .field {
+  gap: 8px;
+}
+
+.organization-delete-modal .field > strong {
+  color: #17211d;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.organization-delete-error {
+  color: #a33a3a;
+  font-size: 0.86rem;
+}
+
+.organization-delete-modal > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 28px 26px;
+}
+
+.organization-delete-submit {
+  border-color: #a33a3a;
+  background: #a33a3a;
+  color: #ffffff;
+}
+
+.organization-delete-submit:hover:not(:disabled) {
+  border-color: #872f2f;
+  background: #872f2f;
+}
+
+.organization-delete-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .auth-shell {
@@ -5115,17 +5241,23 @@
   }
 
   .organization-row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
   }
 
   .organization-row .organization-status {
-    grid-column: 2;
+    grid-column: 3;
+    grid-row: 1;
     justify-self: start;
   }
 
+  .organization-row__delete {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
   .organization-row__arrow {
-    grid-column: 3;
-    grid-row: 1 / span 2;
+    grid-column: 4;
+    grid-row: 2;
   }
 
   .organization-summary-grid {

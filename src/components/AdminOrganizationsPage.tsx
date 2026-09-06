@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react"
-import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, Edit3, Info, LockKeyhole, Mail, PauseCircle, PlayCircle, Plus, RefreshCw, Settings2, ShieldCheck, UserPlus, UserRound, UserX, Users } from "lucide-react"
-import { createOrganization, disableOrganizationMembership, listOrganizationUsers, listOrganizations, revokeOrganizationInvitation, sendManagerInvitation, setOrganizationOperationalAccess, setOrganizationStatus, updateOrganization } from "../services/organizations"
+import { ArrowLeft, Ban, Building2, CalendarDays, CheckCircle2, ChevronRight, Clock3, Edit3, Info, LockKeyhole, Mail, PauseCircle, PlayCircle, Plus, RefreshCw, Settings2, ShieldCheck, Trash2, UserPlus, UserRound, UserX, Users } from "lucide-react"
+import { createOrganization, deleteOrganization, disableOrganizationMembership, listOrganizationUsers, listOrganizations, revokeOrganizationInvitation, sendManagerInvitation, setOrganizationOperationalAccess, setOrganizationStatus, updateOrganization } from "../services/organizations"
 import type { CreateOrganizationInput, OperationalAccessReasonCode, OrganizationStatus, OrganizationSummary, OrganizationUserRecord } from "../types/organization"
 import { useOrganization } from "../contexts/OrganizationContext"
+import { useAuth } from "../contexts/AuthContext"
 import { FeedbackAdminPanel } from "./FeedbackAdminPanel"
 
 type AdminTab = "summary" | "users" | "tickets"
@@ -29,7 +30,12 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization, onRefr
   const [accessReasonCode, setAccessReasonCode] = useState<OperationalAccessReasonCode>("manual")
   const [accessReasonNote, setAccessReasonNote] = useState("")
   const [accessError, setAccessError] = useState<string | null>(null)
+  const [deletingOrganization, setDeletingOrganization] = useState<OrganizationSummary | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState("")
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const { setActiveOrganization } = useOrganization()
+  const { isFleetmasterAdmin } = useAuth()
 
   const loadOrganizations = async () => {
     setIsLoading(true); setLoadError(null)
@@ -89,6 +95,37 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization, onRefr
     }
   }
 
+  const openDeleteModal = (organization: OrganizationSummary) => {
+    setDeletingOrganization(organization)
+    setDeleteConfirmation("")
+    setDeleteError(null)
+  }
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return
+    setDeletingOrganization(null)
+    setDeleteConfirmation("")
+    setDeleteError(null)
+  }
+
+  const handleDeleteOrganization = async () => {
+    if (!deletingOrganization || !isFleetmasterAdmin || isDeleting || deleteConfirmation !== deletingOrganization.name) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteOrganization(deletingOrganization.id)
+      setDeletingOrganization(null)
+      setDeleteConfirmation("")
+      await loadOrganizations()
+      void onRefreshSupportUnread().catch(() => undefined)
+      onFeedback("Empresa eliminada correctamente.")
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "No fue posible completar la eliminación. Inténtalo nuevamente.")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   if (selectedOrganization) {
     const accessEnabled = selectedOrganization.status === "active" && selectedOrganization.operationalAccessManuallyEnabled
     const accessLabel = accessEnabled ? "Liberado" : "Bloqueado"
@@ -113,7 +150,18 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization, onRefr
    </section>
   }
 
-  return <section className="admin-page"><header className="page-header"><div><p>Administración</p><h1>Empresas</h1><span>Administra las empresas y sus límites de usuarios.</span></div><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></header>{supportUnreadOrganizations.length > 0 ? <div className="organization-support-summary" aria-label="Actividad pendiente de soporte">{supportUnreadOrganizations.map((item) => <span key={item.organizationId}><strong>{organizations.find((organization) => organization.id === item.organizationId)?.name ?? "Empresa"}</strong><em>{item.unreadCount}</em></span>)}</div> : null}{isLoading ? <div className="state-card">Cargando empresas...</div> : loadError ? <div className="state-card state-card--warning"><strong>No se pudieron cargar las empresas</strong><span>{loadError}</span></div> : organizations.length === 0 ? <div className="empty-state admin-empty-state"><Building2 aria-hidden="true" size={34} /><strong>No hay empresas registradas</strong><span>Crea la primera empresa para comenzar a organizar FleetMaster.</span><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></div> : <div className="organization-list">{organizations.map((organization) => <button className="organization-row" key={organization.id} onClick={() => { setSelectedOrganizationId(organization.id); setActiveTab("summary") }} type="button"><span className="organization-row__icon"><Building2 aria-hidden="true" size={20} /></span><span className="organization-row__content"><strong>{organization.name}</strong><small>Usuarios: {organization.seatsUsed} de {organization.seatLimit} · Alta: {formatDate(organization.createdAt)}</small></span><span className={`organization-status organization-status--${organization.status}`}>{organization.status === "active" ? "Activa" : "Suspendida"}</span><span className="organization-row__arrow" aria-hidden="true">→</span></button>)}</div>}{isFormOpen ? <OrganizationForm editingOrganization={editingOrganization} isSaving={isSaving} onClose={() => setIsFormOpen(false)} onSubmit={handleSave} /> : null}</section>
+  return <section className="admin-page"><header className="page-header"><div><p>Administración</p><h1>Empresas</h1><span>Administra las empresas y sus límites de usuarios.</span></div><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></header>{supportUnreadOrganizations.length > 0 ? <div className="organization-support-summary" aria-label="Actividad pendiente de soporte">{supportUnreadOrganizations.map((item) => <span key={item.organizationId}><strong>{organizations.find((organization) => organization.id === item.organizationId)?.name ?? "Empresa"}</strong><em>{item.unreadCount}</em></span>)}</div> : null}{isLoading ? <div className="state-card">Cargando empresas...</div> : loadError ? <div className="state-card state-card--warning"><strong>No se pudieron cargar las empresas</strong><span>{loadError}</span></div> : organizations.length === 0 ? <div className="empty-state admin-empty-state"><Building2 aria-hidden="true" size={34} /><strong>No hay empresas registradas</strong><span>Crea la primera empresa para comenzar a organizar FleetMaster.</span><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></div> : <div className="organization-list">{organizations.map((organization) => <div className="organization-row" key={organization.id} onClick={() => { setSelectedOrganizationId(organization.id); setActiveTab("summary") }} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedOrganizationId(organization.id); setActiveTab("summary") } }} role="button" tabIndex={0}><span className="organization-row__icon"><Building2 aria-hidden="true" size={20} /></span><span className="organization-row__content"><strong>{organization.name}</strong><small>Usuarios: {organization.seatsUsed} de {organization.seatLimit} · Alta: {formatDate(organization.createdAt)}</small></span>{isFleetmasterAdmin ? <button aria-label="Eliminar empresa" className="organization-row__delete" onClick={(event) => { event.stopPropagation(); openDeleteModal(organization) }} onKeyDown={(event) => event.stopPropagation()} title="Eliminar empresa" type="button"><Trash2 aria-hidden="true" size={17} /></button> : null}<span className={`organization-status organization-status--${organization.status}`}>{organization.status === "active" ? "Activa" : "Suspendida"}</span><span className="organization-row__arrow" aria-hidden="true">→</span></div>)}</div>}{isFormOpen ? <OrganizationForm editingOrganization={editingOrganization} isSaving={isSaving} onClose={() => setIsFormOpen(false)} onSubmit={handleSave} /> : null}{deletingOrganization ? <OrganizationDeletionModal confirmation={deleteConfirmation} error={deleteError} isDeleting={isDeleting} onClose={closeDeleteModal} onConfirmationChange={setDeleteConfirmation} onConfirm={() => void handleDeleteOrganization()} organization={deletingOrganization} /> : null}</section>
+}
+
+function OrganizationDeletionModal({ organization, confirmation, error, isDeleting, onClose, onConfirmationChange, onConfirm }: { organization: OrganizationSummary; confirmation: string; error: string | null; isDeleting: boolean; onClose: () => void; onConfirmationChange: (value: string) => void; onConfirm: () => void }) {
+  useEffect(() => {
+    if (isDeleting) return
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose() }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isDeleting, onClose])
+  const isConfirmed = confirmation === organization.name
+  return <div className="organization-delete-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose() }}><section aria-describedby="organization-delete-description" aria-labelledby="organization-delete-title" aria-modal="true" className="organization-delete-modal" role="dialog"><header><div><p>Eliminar empresa</p><h2 id="organization-delete-title">¿Eliminar {organization.name}?</h2></div><button aria-label="Cerrar" className="icon-button" disabled={isDeleting} onClick={onClose} type="button">×</button></header><div className="organization-delete-modal__body"><p id="organization-delete-description">Se eliminarán permanentemente la empresa y sus datos asociados, incluidos usuarios, tickets, documentos y archivos.</p><div className="organization-delete-summary"><strong>{organization.name}</strong><span>Usuarios: {organization.seatsUsed} de {organization.seatLimit}</span><span>Alta: {formatDate(organization.createdAt)}</span></div><p className="organization-delete-warning"><strong>Esta acción no se puede deshacer.</strong></p><label className="field"><span>Para confirmar, escribe exactamente:</span><strong>{organization.name}</strong><input autoFocus disabled={isDeleting} onChange={(event) => onConfirmationChange(event.target.value)} value={confirmation} /></label>{error ? <p className="organization-delete-error" role="alert">{error}</p> : null}</div><footer><button className="button button--secondary" disabled={isDeleting} onClick={onClose} type="button">Cancelar</button><button className="button organization-delete-submit" disabled={!isConfirmed || isDeleting} onClick={onConfirm} type="button">{isDeleting ? "Eliminando..." : "Eliminar empresa definitivamente"}</button></footer></section></div>
 }
 
 function OperationalAccessForm({ enabled, isSaving, reasonCode, reasonNote, error, onClose, onReasonCodeChange, onReasonNoteChange, onSubmit }: { enabled: boolean; isSaving: boolean; reasonCode: OperationalAccessReasonCode; reasonNote: string; error: string | null; onClose: () => void; onReasonCodeChange: (value: OperationalAccessReasonCode) => void; onReasonNoteChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {

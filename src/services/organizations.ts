@@ -196,6 +196,51 @@ export const listOrganizationUsers = async (organizationId: string) => {
   return (data as OrganizationUserRow[]).map(toOrganizationUser)
 }
 
+export class OrganizationDeletionError extends Error {
+  code: string
+
+  constructor(code: string, message: string) {
+    super(message)
+    this.name = "OrganizationDeletionError"
+    this.code = code
+  }
+}
+
+const getEdgeFunctionErrorCode = async (error: unknown) => {
+  if (!error || typeof error !== "object" || !("context" in error)) return ""
+  const context = error.context
+  if (!context || typeof context !== "object" || !("clone" in context) || typeof context.clone !== "function") return ""
+
+  try {
+    const body = await (context as Response).clone().json() as { code?: unknown }
+    return typeof body.code === "string" ? body.code : ""
+  } catch {
+    return ""
+  }
+}
+
+export const deleteOrganization = async (organizationId: string) => {
+  const { data, error } = await getSupabaseClient().functions.invoke("delete-organization", {
+    body: { organizationId },
+  })
+
+  let code = data && typeof data === "object" && "code" in data ? String(data.code) : ""
+  if (!code) code = await getEdgeFunctionErrorCode(error)
+  if (!error && data?.ok === true) return data
+
+  const messages: Record<string, string> = {
+    invalid_request: "No se pudo identificar la empresa seleccionada.",
+    unauthorized: "Tu sesión ya no es válida. Inicia sesión nuevamente.",
+    permission_denied: "No tienes autorización para eliminar esta empresa.",
+    organization_not_found: "La empresa ya no está disponible.",
+    organization_already_deleted: "Esta empresa ya fue eliminada.",
+    storage_list_failed: "No fue posible preparar los documentos de la empresa para su eliminación.",
+    storage_remove_failed: "No fue posible limpiar los documentos de la empresa. Inténtalo nuevamente.",
+    storage_not_empty: "No se pudo completar la limpieza de documentos. Inténtalo nuevamente.",
+  }
+  throw new OrganizationDeletionError(code, messages[code] ?? "No fue posible completar la eliminación. Inténtalo nuevamente.")
+}
+
 export const createManagerInvitation = async (input: CreateManagerInvitationInput) => {
   const { data, error } = await getSupabaseClient().rpc("create_manager_invitation", {
     p_organization_id: input.organizationId,
