@@ -1106,9 +1106,9 @@
 
 .vehicle-card {
   width: 100%;
-  min-height: 208px;
+  min-height: 174px;
   display: grid;
-  align-content: space-between;
+  align-content: start;
   gap: 18px;
   padding: 18px;
   border: 1px solid #e2e8e5;
@@ -1131,7 +1131,6 @@
 }
 
 .vehicle-card__header,
-.vehicle-card__footer,
 .vehicle-card__operation {
   display: flex;
   justify-content: space-between;
@@ -1296,22 +1295,6 @@
   color: #788681;
   font-size: 0.76rem;
   font-weight: 700;
-}
-
-.vehicle-card__footer {
-  justify-content: flex-end;
-  border-top: 1px solid #edf1ef;
-  padding-top: 14px;
-  color: #788681;
-  font-size: 0.9rem;
-}
-
-.vehicle-card__footer strong {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  color: #17211d;
-  font-size: 0.94rem;
 }
 
 .status-badge {
@@ -5416,11 +5399,10 @@
   }
 
   .vehicle-card {
-    min-height: 190px;
+    min-height: 174px;
   }
 
-  .vehicle-card__operation,
-  .vehicle-card__footer {
+  .vehicle-card__operation {
     display: grid;
     justify-content: stretch;
     gap: 8px;

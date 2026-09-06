@@ -1,4 +1,4 @@
-import { ArrowRight, Gauge } from "lucide-react"
+import { Gauge } from "lucide-react"
 import { StatusBadge } from "./StatusBadge"
 import type { DocumentAlert } from "../services/vehicleDocuments"
 import type { Vehicle } from "../types/vehicle"
@@ -50,12 +50,6 @@ export function VehicleCard({ documentAlerts, vehicle, isSelected, onSelect }: V
         </div>
       </div>
 
-      <div className="vehicle-card__footer">
-        <strong>
-          Ver unidad
-          <ArrowRight aria-hidden="true" size={16} />
-        </strong>
-      </div>
     </button>
   )
 }
