@@ -97,6 +97,14 @@ export default function AppEntry() {
       () => {
         if (active) void refreshSupportUnread()
       },
+    ).on(
+      "postgres_changes",
+      isFleetmasterAdmin
+        ? { event: "INSERT", schema: "public", table: "feedback_ticket_events" }
+        : { event: "INSERT", schema: "public", table: "feedback_ticket_events", filter: `organization_id=eq.${organizationAccess?.organizationId}` },
+      () => {
+        if (active) void refreshSupportUnread()
+      },
     ).subscribe()
 
     return () => {
