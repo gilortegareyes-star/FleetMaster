@@ -1468,17 +1468,18 @@
 
 .vehicle-detail__operations {
   display: grid;
-  justify-items: end;
+  justify-items: start;
   gap: 12px;
-  max-width: min(360px, 100%);
+  width: min(360px, 100%);
 }
 
 .vehicle-detail__operation-group {
   display: grid;
-  justify-items: end;
+  justify-items: start;
   gap: 4px;
+  width: 100%;
   max-width: 100%;
-  text-align: right;
+  text-align: left;
 }
 
 .vehicle-detail__info-label {
@@ -1513,7 +1514,7 @@
 .vehicle-detail__badge-row {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
   flex-wrap: wrap;
 }
