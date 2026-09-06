@@ -32,7 +32,7 @@ interface StoredNavigation {
 }
 
 function App() {
-  const { signOut, user } = useAuth()
+  const { isFleetmasterAdmin, signOut, user } = useAuth()
   const { activeOrganization, clearActiveOrganization } = useOrganization()
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -64,8 +64,9 @@ function App() {
   }
 
   const navigateTo = (view: ActiveView, clearVehicle = false) => {
-    setActiveView(view)
-    storeNavigation(view, activeOrganization?.id ?? null, clearVehicle ? null : selectedVehicleId, clearVehicle ? false : isVehicleCenterOpen)
+    const nextView = view === "administracion" && !isFleetmasterAdmin ? "unidades" : view
+    setActiveView(nextView)
+    storeNavigation(nextView, activeOrganization?.id ?? null, clearVehicle ? null : selectedVehicleId, clearVehicle ? false : isVehicleCenterOpen)
   }
 
   useEffect(() => {
@@ -95,19 +96,19 @@ function App() {
 
       if (activeOrganization?.id) {
         if (stored.organizationId === activeOrganization.id) {
-          setActiveView(stored.activeView as ActiveView)
+          setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin ? "unidades" : stored.activeView as ActiveView)
         } else {
           window.sessionStorage.removeItem(navigationStorageKey)
           setActiveView("unidades")
         }
       } else if (stored.organizationId === null) {
-        setActiveView(stored.activeView as ActiveView)
+        setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin ? "unidades" : stored.activeView as ActiveView)
       }
     } catch {
       window.sessionStorage.removeItem(navigationStorageKey)
       setActiveView("unidades")
     }
-  }, [activeOrganization?.id, user?.id])
+  }, [activeOrganization?.id, isFleetmasterAdmin, user?.id])
 
   useEffect(() => {
     let isActive = true
@@ -399,14 +400,14 @@ function App() {
             <CarFront aria-hidden="true" size={19} />
             Flota
           </button>
-          <button
+          {isFleetmasterAdmin ? <button
             className={activeView === "administracion" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("administracion")}
             type="button"
           >
             <Settings2 aria-hidden="true" size={19} />
             Administración
-          </button>
+          </button> : null}
           <button
             className={activeView === "proveedores" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("proveedores")}
@@ -430,7 +431,7 @@ function App() {
 
       <main className="content-shell">
         {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
-        {activeView === "administracion" ? (
+        {activeView === "administracion" && isFleetmasterAdmin ? (
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
