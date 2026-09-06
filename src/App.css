@@ -1183,9 +1183,8 @@
   width: max-content;
   min-width: 190px;
   max-width: min(290px, 68vw);
-  display: grid;
-  gap: 6px;
-  padding: 9px 11px;
+  display: block;
+  padding: 12px 14px;
   border: 0;
   border-radius: 7px;
   background: #17211d;
@@ -1213,9 +1212,28 @@
 }
 
 .vehicle-document-alert__tooltip strong,
-.vehicle-document-alert__tooltip span {
+.vehicle-document-alert__list,
+.vehicle-document-alert__list > span {
   position: relative;
   z-index: 1;
+}
+
+.vehicle-document-alert__tooltip strong {
+  display: block;
+}
+
+.vehicle-document-alert__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.vehicle-document-alert__list--single {
+  margin-top: 6px;
+}
+
+.vehicle-document-alert__list--multiple {
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .vehicle-document-alert__tooltip strong {
