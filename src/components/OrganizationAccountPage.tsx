@@ -1,8 +1,6 @@
 import { CalendarDays, Gauge, Info, LogOut, Mail, RefreshCw, ShieldCheck, Truck, UserPlus, UserRound, UsersRound } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
 import { createOrganizationClientInvitation, listOrganizationUsers } from "../services/organizations"
-import { listFeedbackUnreadTickets } from "../services/feedback"
-import { getSupabaseClient } from "../services/supabase"
 import type { FeedbackUnreadTicket } from "../types/feedback"
 import type { OrganizationAccess, OrganizationUserRecord } from "../types/organization"
 import { useAuth } from "../contexts/AuthContext"
@@ -24,7 +22,7 @@ const getUserStatus = (item: OrganizationUserRecord) => {
   return { label: "Deshabilitado", className: "user-status--disabled" }
 }
 
-export function OrganizationAccountPage({ access }: { access: OrganizationAccess }) {
+export function OrganizationAccountPage({ access, onRefreshUnread, unreadTickets }: { access: OrganizationAccess; onRefreshUnread: () => Promise<void>; unreadTickets: FeedbackUnreadTicket[] }) {
   const { signOut } = useAuth()
   const [users, setUsers] = useState<OrganizationUserRecord[]>([])
   const [name, setName] = useState("")
@@ -33,7 +31,6 @@ export function OrganizationAccountPage({ access }: { access: OrganizationAccess
   const [error, setError] = useState<string | null>(null)
   const [loadingUsers, setLoadingUsers] = useState(access.role === "manager")
   const [sending, setSending] = useState(false)
-  const [unreadTickets, setUnreadTickets] = useState<FeedbackUnreadTicket[]>([])
 
   const refreshUsers = async () => {
     if (access.role !== "manager") return
@@ -41,52 +38,6 @@ export function OrganizationAccountPage({ access }: { access: OrganizationAccess
     try { setUsers(await listOrganizationUsers(access.organizationId)) } catch { setError("No se pudo cargar la lista de usuarios.") } finally { setLoadingUsers(false) }
   }
   useEffect(() => { void refreshUsers() }, [access.organizationId, access.role])
-
-  const refreshUnread = async () => {
-    const safeError = (error: unknown) => {
-      if (!error || typeof error !== "object") return {}
-      const candidate = error as { code?: unknown; message?: unknown; rawMessage?: unknown; details?: unknown; hint?: unknown }
-      return {
-        ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
-        ...(typeof candidate.rawMessage === "string" ? { message: candidate.rawMessage } : typeof candidate.message === "string" ? { message: candidate.message } : {}),
-        ...(typeof candidate.details === "string" ? { details: candidate.details } : {}),
-        ...(typeof candidate.hint === "string" ? { hint: candidate.hint } : {}),
-      }
-    }
-
-    try {
-      const tickets = await listFeedbackUnreadTickets()
-      console.debug("[FLEET-5E DEBUG] account unread response", { organizationId: access.organizationId, count: tickets.length, ticketIds: tickets.map((ticket) => ticket.ticketId) })
-      setUnreadTickets(tickets)
-    } catch (error) {
-      console.error("[FLEET-5E DEBUG] account unread error", safeError(error))
-      setUnreadTickets([])
-    }
-  }
-
-  useEffect(() => {
-    let active = true
-    void refreshUnread()
-    const channel = getSupabaseClient().channel(`feedback-account-${access.organizationId}`)
-    const changes = channel.on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "feedback_tickets", filter: `organization_id=eq.${access.organizationId}` },
-      () => {
-        if (active) void refreshUnread()
-      },
-    )
-    changes.on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "feedback_ticket_messages", filter: `organization_id=eq.${access.organizationId}` },
-      () => {
-        if (active) void refreshUnread()
-      },
-    ).subscribe()
-    return () => {
-      active = false
-      void getSupabaseClient().removeChannel(channel)
-    }
-  }, [access.organizationId])
 
   const inviteClient = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -148,7 +99,7 @@ export function OrganizationAccountPage({ access }: { access: OrganizationAccess
           <form className="organization-account-invite" onSubmit={inviteClient}><div className="organization-account-invite__fields"><label className="invitation-field"><span>Nombre completo</span><input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="Ej. Juan Pérez" required value={name} /></label><label className="invitation-field"><span>Correo electrónico</span><div className="login-field__control"><Mail aria-hidden="true" size={18} /><input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" required type="email" value={email} /></div></label></div>{error ? <p className="invitation-error" role="alert">{error}</p> : null}{feedback ? <p className="invitation-success" role="status">{feedback}</p> : null}<div className="organization-account-invite__notice"><Info aria-hidden="true" size={17} /><span>El usuario recibirá un correo con instrucciones para activar su cuenta y unirse a {access.organizationName}.</span></div><div className="organization-account-invite__footer"><span className="organization-account-invite__hint">La invitación será válida durante 7 días.</span><button className="button button--primary" disabled={sending} type="submit"><UserPlus aria-hidden="true" size={17} />{sending ? "Registrando..." : "Invitar usuario"}</button></div></form>
         </section>
       </> : <div className="organization-account-users organization-account-users--client"><UsersRound aria-hidden="true" size={20} /><p>Tu cuenta tiene acceso a la organización. La administración de usuarios corresponde al Manager.</p></div>}
-      <FeedbackPanel onRefreshUnread={refreshUnread} unreadTickets={unreadTickets} />
+      <FeedbackPanel onRefreshUnread={onRefreshUnread} unreadTickets={unreadTickets} />
     </section>
   </main>
 }
