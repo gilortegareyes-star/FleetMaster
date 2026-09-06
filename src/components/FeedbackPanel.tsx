@@ -146,6 +146,10 @@ export function FeedbackPanel({
     (async () => {
       setLocalUnreadTickets(await listFeedbackUnreadTickets());
     });
+  const markSelectedTicketRead = async (ticketId: string) => {
+    await markFeedbackTicketRead(ticketId);
+    await refreshUnread();
+  };
   useEffect(() => {
     if (!unreadTickets) void refreshUnread();
   }, []);
@@ -155,12 +159,6 @@ export function FeedbackPanel({
     stickToBottomRef.current = true;
     setMessages([]);
     setError(null);
-    try {
-      await markFeedbackTicketRead(ticket.id);
-      await refreshUnread();
-    } catch {
-      setError("No se pudo actualizar la lectura del ticket.");
-    }
   };
   useEffect(() => {
     if (!selected) {
@@ -336,13 +334,15 @@ export function FeedbackPanel({
               createdAt: row.created_at,
             },
           ]);
-          void markFeedbackTicketRead(selected.id)
-            .then(refreshUnread)
-            .catch(() => undefined);
+          if (stickToBottomRef.current) {
+            void markSelectedTicketRead(selected.id).catch(() => undefined);
+          }
         },
       );
     const refreshCloseState = () => {
-      void refreshAfterCloseAction().catch(() => {
+      void refreshAfterCloseAction().then(() => {
+        if (stickToBottomRef.current) return markSelectedTicketRead(selected.id);
+      }).catch(() => {
         if (active) setError("No se pudo actualizar el estado de cierre.");
       });
     };
@@ -369,7 +369,11 @@ export function FeedbackPanel({
     });
     void getFeedbackTicketMessages(selected.id)
       .then((loaded) => {
-        if (active) mergeMessages(loaded);
+        if (!active) return;
+        mergeMessages(loaded);
+        if (stickToBottomRef.current) {
+          void markSelectedTicketRead(selected.id).catch(() => undefined);
+        }
       })
       .catch((loadError) => {
         if (active)

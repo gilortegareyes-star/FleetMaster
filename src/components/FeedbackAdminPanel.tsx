@@ -108,6 +108,10 @@ export function FeedbackAdminPanel({
   const [search, setSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const markSelectedTicketRead = async (ticketId: string) => {
+    await markFeedbackTicketRead(ticketId);
+    await onRefreshUnread();
+  };
   const timeline = useMemo<SupportTimelineItem[]>(() => {
     const items: SupportTimelineItem[] = messages.map((item, order) => ({ kind: "message", at: item.createdAt, item, order }));
     if (pendingClose) items.push({ kind: "close-request", at: pendingClose.requestedAt, item: pendingClose, order: items.length });
@@ -159,12 +163,6 @@ export function FeedbackAdminPanel({
     stickToBottomRef.current = true;
     setMessages([]);
     setError(null);
-    try {
-      await markFeedbackTicketRead(ticket.id);
-      await onRefreshUnread();
-    } catch {
-      setError("No se pudo actualizar la lectura del ticket.");
-    }
   };
   useEffect(() => {
     if (!selected) {
@@ -303,13 +301,15 @@ export function FeedbackAdminPanel({
               createdAt: row.created_at,
             },
           ]);
-          void markFeedbackTicketRead(selected.id)
-            .then(onRefreshUnread)
-            .catch(() => undefined);
+          if (stickToBottomRef.current) {
+            void markSelectedTicketRead(selected.id).catch(() => undefined);
+          }
         },
       );
     const refreshCloseState = () => {
-      void refreshAfterCloseAction().catch(() => {
+      void refreshAfterCloseAction().then(() => {
+        if (stickToBottomRef.current) return markSelectedTicketRead(selected.id);
+      }).catch(() => {
         if (active) setError("No se pudo actualizar el estado de cierre.");
       });
     };
@@ -336,7 +336,11 @@ export function FeedbackAdminPanel({
     });
     void getFeedbackTicketMessages(selected.id)
       .then((loaded) => {
-        if (active) mergeMessages(loaded);
+        if (!active) return;
+        mergeMessages(loaded);
+        if (stickToBottomRef.current) {
+          void markSelectedTicketRead(selected.id).catch(() => undefined);
+        }
       })
       .catch((loadError) => {
         if (active)

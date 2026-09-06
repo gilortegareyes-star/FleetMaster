@@ -1,5 +1,5 @@
 import { LogIn } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Login } from "./components/Login"
 import { InvitationOnboarding } from "./components/InvitationOnboarding"
 import { OrganizationAccountPage } from "./components/OrganizationAccountPage"
@@ -30,31 +30,32 @@ export default function AppEntry() {
   const [invitationLoading, setInvitationLoading] = useState(false)
   const [supportUnreadTickets, setSupportUnreadTickets] = useState<FeedbackUnreadTicket[]>([])
   const [supportUnreadOrganizations, setSupportUnreadOrganizations] = useState<FeedbackAdminUnreadOrganization[]>([])
+  const supportUnreadGenerationRef = useRef(0)
 
   const refreshSupportUnread = async () => {
+    const generation = ++supportUnreadGenerationRef.current
     if (isFleetmasterAdmin) {
       try {
         const [tickets, organizations] = await Promise.all([listFeedbackUnreadTickets(), listFeedbackAdminUnreadSummary()])
+        if (generation !== supportUnreadGenerationRef.current) return
         setSupportUnreadTickets(tickets)
         setSupportUnreadOrganizations(organizations)
-      } catch {
-        setSupportUnreadTickets([])
-        setSupportUnreadOrganizations([])
-      }
+      } catch { return }
       return
     }
 
     if (organizationAccess) {
       try {
         const tickets = await listFeedbackUnreadTickets()
+        if (generation !== supportUnreadGenerationRef.current) return
         setSupportUnreadTickets(tickets)
-      } catch {
-        setSupportUnreadTickets([])
-      }
+      } catch { return }
+      if (generation !== supportUnreadGenerationRef.current) return
       setSupportUnreadOrganizations([])
       return
     }
 
+    if (generation !== supportUnreadGenerationRef.current) return
     setSupportUnreadTickets([])
     setSupportUnreadOrganizations([])
   }
@@ -102,6 +103,18 @@ export default function AppEntry() {
       isFleetmasterAdmin
         ? { event: "INSERT", schema: "public", table: "feedback_ticket_events" }
         : { event: "INSERT", schema: "public", table: "feedback_ticket_events", filter: `organization_id=eq.${organizationAccess?.organizationId}` },
+      () => {
+        if (active) void refreshSupportUnread()
+      },
+    ).on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "feedback_ticket_reads", filter: `user_id=eq.${session.user.id}` },
+      () => {
+        if (active) void refreshSupportUnread()
+      },
+    ).on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "feedback_ticket_reads", filter: `user_id=eq.${session.user.id}` },
       () => {
         if (active) void refreshSupportUnread()
       },
