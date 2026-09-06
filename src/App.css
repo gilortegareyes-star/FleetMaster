@@ -1636,7 +1636,7 @@
 
 .unit-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   padding: 18px;
 }
@@ -1709,10 +1709,15 @@
 
 .next-service-card,
 .summary-card {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 20px;
+}
+
+.unit-summary > .next-service-card > .button:last-child,
+.unit-summary > .summary-card > .button:last-child {
+  margin-top: auto;
 }
 
 .next-service-card strong,
