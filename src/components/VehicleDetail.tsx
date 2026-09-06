@@ -1,6 +1,5 @@
 import {
   ArrowLeft,
-  ArrowRight,
   CalendarClock,
   ClipboardCheck,
   Edit3,
@@ -318,25 +317,25 @@ export function VehicleDetail({
   const registrationPanelTypes = registrationViewTypes.length > 0 ? registrationViewTypes : [null]
   const registrationDocumentExists = Boolean(registrationCards.state || registrationCards.federal)
   const insuranceAction = !insurancePolicy
-    ? "Cargar documento"
+    ? "Cargar seguro"
     : insuranceStatus.tone === "current"
-      ? "Ver documento"
-      : "Actualizar documento"
+      ? "Ver seguro"
+      : "Actualizar seguro"
   const registrationAction = registrationComplete
-    ? "Ver documento"
+    ? "Ver tarjeta"
     : registrationDocumentExists
-      ? "Actualizar documento"
-      : "Cargar documento"
+      ? "Actualizar tarjeta"
+      : "Cargar tarjeta"
   const inspectionAction = !vehicleInspection
-    ? "Registrar"
+    ? "Cargar verificación"
     : inspectionStatus.tone === "warning" || inspectionStatus.tone === "expired"
-      ? "Actualizar documento"
-      : "Ver documento"
+      ? "Actualizar verificación"
+      : "Ver verificación"
 
   const documentActionAriaLabels = {
-    "Póliza de seguro": `${insuranceAction} de seguro`,
-    "Tarjeta de circulación": `${registrationAction} de circulación`,
-    "Verificación vehicular": `${inspectionAction} vehicular`,
+    "Póliza de seguro": insuranceAction,
+    "Tarjeta de circulación": registrationAction,
+    "Verificación vehicular": inspectionAction,
   }
 
   const documentShortcuts = [
@@ -593,8 +592,18 @@ export function VehicleDetail({
                 </div>
               ) : documentShortcuts.map((item) => (
                 <div
+                  aria-label={documentActionAriaLabels[item.label as keyof typeof documentActionAriaLabels]}
                   className="document-shortcut"
                   key={item.label}
+                  onClick={item.onClick}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault()
+                      item.onClick()
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
                   <span className="document-shortcut__icon">{item.icon}</span>
                   {item.isRequired && item.isPending ? <TriangleAlert aria-label="Documentación pendiente" className="document-shortcut__warning" size={16} /> : null}
@@ -605,15 +614,9 @@ export function VehicleDetail({
                   {item.status ? (
                     <span className={`document-status document-status--${item.statusTone}`}>{item.status}</span>
                   ) : null}
-                  <button
-                    aria-label={documentActionAriaLabels[item.label as keyof typeof documentActionAriaLabels]}
-                    className="document-shortcut__action"
-                    onClick={item.onClick}
-                    type="button"
-                  >
+                  <span className="document-shortcut__action">
                     {item.action}
-                    <ArrowRight aria-hidden="true" size={15} />
-                  </button>
+                  </span>
                 </div>
               ))}
             </div>

@@ -1802,9 +1802,14 @@
   padding: 14px;
   background: #fbfcfb;
   color: #17211d;
-  cursor: default;
+  cursor: pointer;
   font: inherit;
+  outline: 0;
   text-align: left;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .document-shortcut__warning {
@@ -1814,6 +1819,14 @@
   color: #b7791f;
 }
 
+.document-shortcut:hover,
+.document-shortcut:focus-visible {
+  border-color: #9ac8bd;
+  background: #f4faf7;
+  box-shadow: 0 12px 24px rgba(31, 45, 39, 0.06);
+}
+
+.document-shortcut:focus-visible,
 .document-link:focus-visible {
   outline: 3px solid rgba(15, 118, 110, 0.18);
   outline-offset: 2px;
@@ -1889,37 +1902,15 @@
 }
 
 .document-shortcut__action {
-  min-height: 34px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   grid-column: 1 / -1;
   grid-row: 4;
-  justify-self: stretch;
-  gap: 6px;
+  justify-self: start;
   margin-top: auto;
-  border: 1px solid #c7e0d8;
-  border-radius: 8px;
-  padding: 0 12px;
-  background: #e6f3ef;
   color: #0f766e;
-  cursor: pointer;
-  font: inherit;
   font-size: 0.8rem;
-  font-weight: 800;
-  transition:
-    background 160ms ease,
-    border-color 160ms ease;
-}
-
-.document-shortcut__action:hover {
-  border-color: #a9d0c5;
-  background: #dceee8;
-}
-
-.document-shortcut__action:focus-visible {
-  outline: 3px solid rgba(15, 118, 110, 0.18);
-  outline-offset: 2px;
+  font-weight: 650;
 }
 
 .document-status--neutral {
