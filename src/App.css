@@ -5965,6 +5965,404 @@
     flex-wrap: wrap;
   }
 }
+
+/* Premium organization detail presentation. Existing actions stay wired to the page handlers. */
+.admin-detail-page {
+  padding-bottom: 32px;
+}
+
+.company-hero {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  overflow: hidden;
+  margin-top: 18px;
+  border: 1px solid #dce7e2;
+  border-radius: 14px;
+  padding: 26px 28px;
+  background: linear-gradient(115deg, #f4faf7 0%, #ffffff 62%, #eef7f5 100%);
+}
+
+.company-hero::after {
+  position: absolute;
+  right: -60px;
+  bottom: -88px;
+  width: 270px;
+  height: 180px;
+  border: 1px solid rgba(15, 118, 110, 0.11);
+  border-radius: 50%;
+  content: "";
+  transform: rotate(-14deg);
+}
+
+.company-hero__identity,
+.company-hero__actions {
+  position: relative;
+  z-index: 1;
+}
+
+.company-hero__identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 16px;
+}
+
+.company-hero__icon,
+.company-section-icon,
+.access-status-card__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  background: #dff2eb;
+  color: #0f766e;
+}
+
+.company-hero__icon {
+  width: 56px;
+  height: 56px;
+}
+
+.company-hero p,
+.company-info-card header p,
+.access-status-card p {
+  margin: 0 0 6px;
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.company-hero h1 {
+  margin: 0;
+  color: #17211d;
+  font-size: clamp(1.8rem, 3vw, 2.55rem);
+  line-height: 1.05;
+}
+
+.company-hero__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 11px;
+  color: #68766f;
+  font-size: 0.84rem;
+}
+
+.company-hero__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.company-hero__actions .organization-status {
+  margin-right: 5px;
+}
+
+.company-tabs {
+  margin-top: 22px;
+}
+
+.access-status-card {
+  display: grid;
+  grid-template-columns: minmax(250px, 1.2fr) minmax(250px, 0.9fr) auto;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid #dce7e2;
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: #ffffff;
+}
+
+.access-status-card--enabled {
+  border-color: #cce7da;
+  background: #fbfefc;
+}
+
+.access-status-card--blocked {
+  border-color: #eadfcf;
+  background: #fffdf9;
+}
+
+.access-status-card__main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+}
+
+.access-status-card__icon {
+  width: 44px;
+  height: 44px;
+}
+
+.access-status-card--blocked .access-status-card__icon {
+  background: #f8ead8;
+  color: #9a6725;
+}
+
+.access-status-card h2 {
+  margin: 0;
+  color: #176d4d;
+  font-size: 1.2rem;
+}
+
+.access-status-card--blocked h2 {
+  color: #8a5a24;
+}
+
+.access-status-card__main > div > span {
+  display: block;
+  margin-top: 5px;
+  color: #53615c;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.access-status-card__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 22px;
+}
+
+.access-status-card__details div {
+  display: grid;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.access-status-card__details span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #788681;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.access-status-card__details strong {
+  color: #34423c;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.access-status-card__action {
+  white-space: nowrap;
+}
+
+.company-metrics {
+  margin-top: 18px;
+}
+
+.company-metric-card {
+  min-height: 148px;
+  align-content: start;
+  gap: 9px;
+  padding: 20px;
+}
+
+.company-metric-card > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.company-metric-card > strong {
+  font-size: 1.8rem;
+  line-height: 1.1;
+}
+
+.company-metric-card > strong small {
+  color: #788681;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.company-metric-card__bar {
+  height: 7px;
+  overflow: hidden;
+  margin-top: 2px;
+  border-radius: 999px;
+  background: #e8efeb;
+}
+
+.company-metric-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #199b75;
+}
+
+.company-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.company-info-card {
+  min-width: 0;
+  border: 1px solid #dce7e2;
+  border-radius: 12px;
+  padding: 20px 22px;
+  background: #ffffff;
+}
+
+.company-info-card > header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 18px;
+}
+
+.company-section-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.company-info-card header p {
+  margin-bottom: 3px;
+}
+
+.company-info-card h2 {
+  margin: 0;
+  color: #25312d;
+  font-size: 1.05rem;
+}
+
+.company-info-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.company-info-card dl div {
+  min-width: 0;
+}
+
+.company-info-card dt {
+  color: #788681;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.company-info-card dd {
+  overflow-wrap: anywhere;
+  margin: 4px 0 0;
+  color: #25312d;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.company-action-list {
+  display: grid;
+  gap: 3px;
+}
+
+.company-action-list button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 8px;
+  background: transparent;
+  color: #0f766e;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.company-action-list button:hover {
+  background: #f2f8f5;
+}
+
+.company-action-list button:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+}
+
+.company-action-list button > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.company-action-list strong {
+  color: #25312d;
+  font-size: 0.86rem;
+}
+
+.company-action-list small {
+  color: #788681;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .company-hero,
+  .access-status-card {
+    grid-template-columns: 1fr;
+  }
+
+  .company-hero {
+    display: grid;
+  }
+
+  .company-hero__actions {
+    justify-content: flex-start;
+  }
+
+  .access-status-card__action {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 700px) {
+  .company-detail-grid,
+  .company-info-card dl {
+    grid-template-columns: 1fr;
+  }
+
+  .company-hero {
+    padding: 21px 18px;
+  }
+
+  .company-hero__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .company-hero__actions .button,
+  .company-hero__actions .organization-status {
+    justify-content: center;
+    margin-right: 0;
+  }
+
+  .access-status-card {
+    gap: 17px;
+    padding: 18px;
+  }
+
+  .access-status-card__details {
+    display: grid;
+    gap: 11px;
+  }
+
+  .access-status-card__action {
+    width: 100%;
+  }
+}
 .maintenance-entry-section {
   border: 1px solid var(--border-color, #dfe5ec);
   border-radius: 12px;
