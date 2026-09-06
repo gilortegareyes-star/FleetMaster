@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   AlertTriangle,
   BadgeCheck,
   CalendarDays,
@@ -698,11 +697,6 @@ export function VehicleDocumentPanel({
 
   return (
     <section className={`insurance-policy-panel${documentType === "registration_card" ? " insurance-policy-panel--registration" : ""}`}>
-      <button className="summary-back-button" onClick={onBackToSummary} type="button">
-        <ArrowLeft aria-hidden="true" size={17} />
-        Atrás
-      </button>
-
       <header className={`insurance-policy-header${documentType === "registration_card" ? " insurance-policy-header--registration" : ""}`}>
         <div>
           <h3>{circulationLabel ? `Tarjeta de circulación ${circulationLabel.toLowerCase()}` : config.title}</h3>
