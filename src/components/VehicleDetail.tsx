@@ -10,7 +10,6 @@ import {
   IdCard,
   ShieldCheck,
   TriangleAlert,
-  Wrench,
   X,
 } from "lucide-react"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
@@ -250,9 +249,6 @@ export function VehicleDetail({
   const vehicleInspection = vehicleDocuments.vehicle_inspection
   const tabs: Array<{ id: UnitTab; label: string; icon: ReactNode }> = [
     { id: "summary", label: "Resumen", icon: <Gauge aria-hidden="true" size={17} /> },
-    { id: "maintenance", label: "Mantenimientos", icon: <Wrench aria-hidden="true" size={17} /> },
-    { id: "upcoming", label: "Próximos servicios", icon: <CalendarClock aria-hidden="true" size={17} /> },
-    { id: "issues", label: "Fallas", icon: <TriangleAlert aria-hidden="true" size={17} /> },
   ]
   const insuranceStatus = getDocumentStatus(insurancePolicy)
   const registrationStatuses = {
