@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, LayoutGrid, List, LogOut, Plus, Search, Settings2, UserRound, Wrench } from "lucide-react"
+import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, Headphones, LayoutGrid, List, LogOut, Plus, Search, Settings2, UserRound, Wrench } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleTable } from "./components/VehicleTable"
@@ -13,15 +13,16 @@ import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 import { useOrganization } from "./contexts/OrganizationContext"
 import { MaintenanceProvidersPage } from "./components/MaintenanceProvidersPage"
+import { FeedbackPanel } from "./components/FeedbackPanel"
 
-type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores"
+type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores" | "soporte"
 type FleetViewMode = "cards" | "table"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
 const navigationStorageKey = "fleetmaster.navigation.v1"
 const fleetViewStorageKey = "fleetmaster:fleet-view"
 const fleetPageSize = 12
-const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores"])
+const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores", "soporte"])
 
 interface StoredNavigation {
   userId: string
@@ -416,6 +417,14 @@ function App() {
             <Wrench aria-hidden="true" size={19} />
             Talleres y proveedores
           </button>
+          {!isFleetmasterAdmin ? <button
+            className={activeView === "soporte" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => navigateTo("soporte", true)}
+            type="button"
+          >
+            <Headphones aria-hidden="true" size={19} />
+            Soporte
+          </button> : null}
         </nav>
         <div className="sidebar__footer">
           <div className="sidebar__account">
@@ -435,6 +444,8 @@ function App() {
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
+        ) : activeView === "soporte" ? (
+          <FeedbackPanel />
         ) : (
           <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
             {isVehicleCenterOpen && selectedVehicle ? (
