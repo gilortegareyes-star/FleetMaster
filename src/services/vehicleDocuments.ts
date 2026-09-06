@@ -96,7 +96,7 @@ const friendlyDocumentError = (message: string) => {
 }
 
 export interface DocumentAlert {
-  code: "insurance_missing" | "insurance_expired" | "insurance_expiring" | "registration_missing" | "registration_expired" | "registration_expiring"
+  code: "insurance_missing" | "insurance_expired" | "insurance_expiring" | "registration_missing" | "registration_expired" | "registration_expiring" | "inspection_missing" | "inspection_expired" | "inspection_expiring"
   label: string
 }
 
@@ -107,7 +107,7 @@ const formatAlertDate = (value: string | null) => {
   return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }).format(parsed)
 }
 
-const documentAlert = (kind: "insurance" | "registration", document: VehicleDocument | null, label: string): DocumentAlert | null => {
+const documentAlert = (kind: "insurance" | "registration" | "inspection", document: VehicleDocument | null, label: string): DocumentAlert | null => {
   if (!document) {
     return { code: `${kind}_missing`, label: `${label} pendiente de subir` } as DocumentAlert
   }
@@ -192,7 +192,7 @@ export const getVehicleDocumentAlerts = async (vehicles: Vehicle[]) => {
       .from("vehicle_documents")
       .select("*")
       .in("vehicle_id", vehicleIds)
-      .in("document_type", ["insurance_policy", "registration_card"])
+      .in("document_type", ["insurance_policy", "registration_card", "vehicle_inspection"])
       .eq("is_current", true)
 
     if (error) {
@@ -203,7 +203,7 @@ export const getVehicleDocumentAlerts = async (vehicles: Vehicle[]) => {
 
     for (const row of (data ?? []) as VehicleDocumentRow[]) {
       const document = toVehicleDocument(row)
-      if (document.documentType !== "insurance_policy" && document.documentType !== "registration_card") {
+      if (document.documentType !== "insurance_policy" && document.documentType !== "registration_card" && document.documentType !== "vehicle_inspection") {
         continue
       }
 
@@ -226,8 +226,12 @@ export const getVehicleDocumentAlerts = async (vehicles: Vehicle[]) => {
         const typeLabel = registrationTypes.length > 1 ? `Tarjeta de circulación ${type === "state" ? "estatal" : "federal"}` : "Tarjeta de circulación"
         return documentAlert("registration", registration, typeLabel)
       }).filter((item): item is DocumentAlert => item !== null)
+      const inspection = documents.find((document) => document.documentType === "vehicle_inspection") ?? null
+      const inspectionAlert = vehicle.federalLicensePlate?.trim()
+        ? documentAlert("inspection", inspection, "Verificación vehicular")
+        : null
 
-      return [vehicle.id, [...(alerts ? [alerts] : []), ...registrationAlerts]] as [string, DocumentAlert[]]
+      return [vehicle.id, [...(alerts ? [alerts] : []), ...registrationAlerts, ...(inspectionAlert ? [inspectionAlert] : [])]] as [string, DocumentAlert[]]
     }))
   } catch (error) {
     throw new Error(friendlyDocumentError(error instanceof Error ? error.message : String(error)))

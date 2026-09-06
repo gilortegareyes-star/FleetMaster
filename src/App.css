@@ -1791,12 +1791,10 @@
 
 .document-shortcut {
   position: relative;
-  min-height: 124px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  align-items: start;
-  gap: 12px 10px;
+  min-height: 230px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   border: 1px solid #e4eae7;
   border-radius: 8px;
   padding: 14px;
@@ -1813,10 +1811,21 @@
 }
 
 .document-shortcut__warning {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+  flex: 0 0 auto;
   color: #b7791f;
+}
+
+.document-shortcut__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.document-shortcut__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .document-shortcut:hover,
@@ -1845,9 +1854,8 @@
 .document-shortcut__content {
   min-width: 0;
   display: grid;
-  grid-column: 1;
-  grid-row: 2;
   gap: 5px;
+  margin-top: 16px;
 }
 
 .document-shortcut__content strong {
@@ -1862,23 +1870,7 @@
   font-size: 0.83rem;
   font-weight: 700;
   line-height: 1.35;
-}
-
-.document-shortcut > svg {
-  grid-column: 2;
-  grid-row: 3;
-  align-self: end;
-  justify-self: end;
-  color: #8b9994;
-}
-
-.document-shortcut > svg.document-shortcut__warning {
-  top: 16px;
-  right: 16px;
-  bottom: auto;
-  align-self: auto;
-  justify-self: auto;
-  color: #b7791f;
+  white-space: pre-line;
 }
 
 .document-shortcuts__state {
@@ -1891,8 +1883,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  grid-column: 1 / -1;
-  grid-row: 3;
   justify-self: start;
   border-radius: 999px;
   padding: 0 9px;
@@ -1904,13 +1894,20 @@
 .document-shortcut__action {
   display: inline-flex;
   align-items: center;
-  grid-column: 1 / -1;
-  grid-row: 4;
   justify-self: start;
   margin-top: auto;
   color: #0f766e;
   font-size: 0.8rem;
   font-weight: 650;
+}
+
+.document-shortcut__description {
+  margin-top: 14px;
+  border-top: 1px solid #edf1ef;
+  padding-top: 13px;
+  color: #64736d;
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .document-status--neutral {

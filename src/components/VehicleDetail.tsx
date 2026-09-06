@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   ClipboardCheck,
   Edit3,
@@ -259,6 +260,8 @@ export function VehicleDetail({
     federal: getDocumentStatus(registrationCards.federal),
   }
   const inspectionStatus = getDocumentStatus(vehicleInspection)
+  const verificationRequired = Boolean(federalLicensePlate)
+  const inspectionComplete = vehicleInspection !== null && vehicleInspection.details.verificationResult !== "rejected" && inspectionStatus.label !== "Vencido"
   const insuranceComplete = insurancePolicy !== null && ["Vigente", "Próximo a vencer"].includes(insuranceStatus.label)
   const requiredCirculationTypes = [
     stateLicensePlate ? "state" : null,
@@ -271,7 +274,11 @@ export function VehicleDetail({
       const document = registrationCards[type]
       return document !== null && registrationStatuses[type].label !== "Vencido"
     })
-  const pendingDocumentCount = [!insuranceComplete, !registrationComplete].filter(Boolean).length
+  const pendingDocumentCount = [
+    !insuranceComplete,
+    !registrationComplete,
+    verificationRequired && !inspectionComplete,
+  ].filter(Boolean).length
   const hasPendingRequiredDocuments = !isDocumentSummaryLoading && !documentSummaryError && pendingDocumentCount > 0
   const isDocumentView =
     activeTab === "insurancePolicy" || activeTab === "registrationCard" || activeTab === "vehicleInspection"
@@ -349,13 +356,14 @@ export function VehicleDetail({
       isRequired: true,
       isPending: !insuranceComplete,
       icon: <ShieldCheck aria-hidden="true" size={17} />,
+      description: "Este documento es obligatorio para operar la unidad.",
       action: insuranceAction,
       onClick: () => setActiveTab("insurancePolicy"),
     },
     {
       label: "Tarjeta de circulación",
       detail: requiredCirculationTypes.length === 2
-        ? `Estatal: ${registrationCards.state ? registrationStatuses.state.label : "Pendiente"} · Federal: ${registrationCards.federal ? registrationStatuses.federal.label : "Pendiente"}`
+        ? `Estatal: ${registrationCards.state ? registrationStatuses.state.label : "Pendiente"}\nFederal: ${registrationCards.federal ? registrationStatuses.federal.label : "Pendiente"}`
         : registrationCard
           ? `${requiredCirculationTypes[0] === "state" ? "Estatal" : "Federal"}: ${displayValue(registrationCard.details.plateNumber ?? (requiredCirculationTypes[0] === "state" ? stateLicensePlate : federalLicensePlate))}`
           : "Sin registrar",
@@ -364,6 +372,7 @@ export function VehicleDetail({
       isRequired: true,
       isPending: !registrationComplete,
       icon: <IdCard aria-hidden="true" size={17} />,
+      description: "Este documento es obligatorio para operar la unidad.",
       action: registrationAction,
       onClick: openRegistrationDocuments,
     },
@@ -374,21 +383,28 @@ export function VehicleDetail({
           ? `Última: ${formatDate(vehicleInspection.validFrom)}`
           : displayValue(vehicleInspection.issuer)
         : "Sin registrar",
-      status: vehicleInspection?.details.verificationResult
+      status: verificationRequired && !vehicleInspection
+        ? "Pendiente"
+        : vehicleInspection?.details.verificationResult
         ? inspectionResultLabels[vehicleInspection.details.verificationResult]
         : vehicleInspection
           ? inspectionStatus.label
           : "Opcional",
-      statusTone: vehicleInspection?.details.verificationResult === "approved" || vehicleInspection?.details.verificationResult === "not_applicable"
+      statusTone: verificationRequired && !vehicleInspection
+        ? "warning"
+        : vehicleInspection?.details.verificationResult === "approved" || vehicleInspection?.details.verificationResult === "not_applicable"
         ? "current"
         : vehicleInspection?.details.verificationResult === "rejected"
           ? "warning"
           : vehicleInspection
             ? inspectionStatus.tone
             : "neutral",
-      isRequired: false,
-      isPending: false,
+      isRequired: verificationRequired,
+      isPending: verificationRequired && !inspectionComplete,
       icon: <ClipboardCheck aria-hidden="true" size={17} />,
+      description: verificationRequired
+        ? "Este documento es obligatorio para operar la unidad."
+        : "Este documento es opcional. Ayuda a mantener completo el expediente de la unidad.",
       action: inspectionAction,
       onClick: () => setActiveTab("vehicleInspection"),
     },
@@ -605,17 +621,23 @@ export function VehicleDetail({
                   role="button"
                   tabIndex={0}
                 >
-                  <span className="document-shortcut__icon">{item.icon}</span>
-                  {item.isRequired && item.isPending ? <TriangleAlert aria-label="Documentación pendiente" className="document-shortcut__warning" size={16} /> : null}
+                  <div className="document-shortcut__header">
+                    <span className="document-shortcut__icon">{item.icon}</span>
+                    <div className="document-shortcut__status">
+                      {item.status ? (
+                        <span className={`document-status document-status--${item.statusTone}`}>{item.status}</span>
+                      ) : null}
+                      {item.isRequired && item.isPending ? <TriangleAlert aria-label="Documentación pendiente" className="document-shortcut__warning" size={16} /> : null}
+                    </div>
+                  </div>
                   <span className="document-shortcut__content">
                     <strong>{item.label}</strong>
                     <small>{item.detail}</small>
                   </span>
-                  {item.status ? (
-                    <span className={`document-status document-status--${item.statusTone}`}>{item.status}</span>
-                  ) : null}
+                  <span className="document-shortcut__description">{item.description}</span>
                   <span className="document-shortcut__action">
                     {item.action}
+                    <ArrowRight aria-hidden="true" size={15} />
                   </span>
                 </div>
               ))}
