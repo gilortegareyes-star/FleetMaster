@@ -882,6 +882,7 @@
   color: #17211d;
   font-size: 1.75rem;
   line-height: 1;
+  text-align: center;
 }
 
 .fleet-metric--warning {
