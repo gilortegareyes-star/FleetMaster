@@ -50,6 +50,7 @@ export default function AppEntry() {
   if (!session) return <Login hasInvitation={Boolean(invitationId)} />
   if (isFleetmasterAdmin) return <App />
   if (invitation) return <InvitationOnboarding invitation={invitation} isNewUser={isInviteSession} onAccepted={clearInvitation} />
+  if (organizationAccess?.operationalAccessEnabled === true) return <App />
   if (organizationAccess) return <OrganizationAccountPage access={organizationAccess} />
   return <AccessDenied />
 }

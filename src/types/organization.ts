@@ -9,6 +9,7 @@ export type MembershipStatus = (typeof membershipStatuses)[number]
 
 export const organizationInvitationStatuses = ["pending", "accepted", "expired", "revoked"] as const
 export type OrganizationInvitationStatus = (typeof organizationInvitationStatuses)[number]
+export type OperationalAccessReasonCode = "manual" | "maintenance" | "administrative" | "security" | "payment" | "other"
 
 export interface Organization {
   id: string
@@ -23,6 +24,11 @@ export interface Organization {
 export interface OrganizationSummary extends Organization {
   seatsUsed: number
   seatsAvailable: number
+  operationalAccessManuallyEnabled: boolean
+  operationalAccessChangedAt: string | null
+  operationalAccessChangedBy: string | null
+  operationalAccessReasonCode: OperationalAccessReasonCode | null
+  operationalAccessReasonNote: string | null
 }
 
 export interface CreateOrganizationInput {
@@ -91,6 +97,11 @@ export interface OrganizationAccess {
   seatLimit: number
   seatsUsed: number
   seatsAvailable: number
+  operationalAccessManuallyEnabled: boolean
+  operationalAccessEnabled: boolean
+  operationalAccessChangedAt: string | null
+  operationalAccessReasonCode: OperationalAccessReasonCode | null
+  operationalAccessReasonNote: string | null
 }
 
 export interface CreateManagerInvitationInput {

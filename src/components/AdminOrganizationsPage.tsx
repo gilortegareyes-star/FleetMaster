@@ -1,12 +1,20 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { ArrowLeft, Ban, Building2, Clock3, Edit3, Mail, PauseCircle, PlayCircle, Plus, RefreshCw, UserPlus, UserRound, UserX, Users } from "lucide-react"
-import { createOrganization, disableOrganizationMembership, listOrganizationUsers, listOrganizations, revokeOrganizationInvitation, sendManagerInvitation, setOrganizationStatus, updateOrganization } from "../services/organizations"
-import type { CreateOrganizationInput, OrganizationStatus, OrganizationSummary, OrganizationUserRecord } from "../types/organization"
+import { createOrganization, disableOrganizationMembership, listOrganizationUsers, listOrganizations, revokeOrganizationInvitation, sendManagerInvitation, setOrganizationOperationalAccess, setOrganizationStatus, updateOrganization } from "../services/organizations"
+import type { CreateOrganizationInput, OperationalAccessReasonCode, OrganizationStatus, OrganizationSummary, OrganizationUserRecord } from "../types/organization"
 import { useOrganization } from "../contexts/OrganizationContext"
 import { FeedbackAdminPanel } from "./FeedbackAdminPanel"
 
 type AdminTab = "summary" | "users" | "tickets"
 const formatDate = (value: string) => new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" }).format(new Date(value))
+const operationalAccessReasons: Array<{ value: OperationalAccessReasonCode; label: string }> = [
+  { value: "manual", label: "Manual" },
+  { value: "maintenance", label: "Mantenimiento" },
+  { value: "administrative", label: "Administrativo" },
+  { value: "security", label: "Seguridad" },
+  { value: "payment", label: "Pago" },
+  { value: "other", label: "Otro" },
+]
 
 export function AdminOrganizationsPage({ onFeedback, onEnterOrganization }: { onFeedback: (message: string) => void; onEnterOrganization: () => void }) {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([])
@@ -17,6 +25,10 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization }: { on
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingOrganization, setEditingOrganization] = useState<OrganizationSummary | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isAccessFormOpen, setIsAccessFormOpen] = useState(false)
+  const [accessReasonCode, setAccessReasonCode] = useState<OperationalAccessReasonCode>("manual")
+  const [accessReasonNote, setAccessReasonNote] = useState("")
+  const [accessError, setAccessError] = useState<string | null>(null)
   const { setActiveOrganization } = useOrganization()
 
   const loadOrganizations = async () => {
@@ -51,15 +63,47 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization }: { on
     finally { setIsSaving(false) }
   }
 
+  const openAccessForm = () => {
+    if (!selectedOrganization) return
+    setAccessReasonCode(selectedOrganization.operationalAccessReasonCode ?? "manual")
+    setAccessReasonNote(selectedOrganization.operationalAccessReasonNote ?? "")
+    setAccessError(null)
+    setIsAccessFormOpen(true)
+  }
+
+  const handleOperationalAccessChange = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selectedOrganization) return
+    const enabled = !selectedOrganization.operationalAccessManuallyEnabled
+    setIsSaving(true)
+    setAccessError(null)
+    try {
+      await setOrganizationOperationalAccess({ organizationId: selectedOrganization.id, enabled, reasonCode: accessReasonCode, reasonNote: accessReasonNote.trim() || null })
+      setIsAccessFormOpen(false)
+      await loadOrganizations()
+      onFeedback(enabled ? "Acceso operativo liberado." : "Acceso operativo bloqueado.")
+    } catch (error) {
+      setAccessError(error instanceof Error ? error.message : "No se pudo actualizar el acceso operativo.")
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   if (selectedOrganization) return <section className="admin-page">
     <button className="summary-back-button" onClick={() => setSelectedOrganizationId(null)} type="button"><ArrowLeft aria-hidden="true" size={18} /> Empresas</button>
     <header className="admin-detail-header"><div><p>Empresa</p><h1>{selectedOrganization.name}</h1><span>Alta: {formatDate(selectedOrganization.createdAt)}</span></div><div className="admin-detail-actions"><span className={`organization-status organization-status--${selectedOrganization.status}`}>{selectedOrganization.status === "active" ? "Activa" : "Suspendida"}</span><button className="button button--primary" disabled={selectedOrganization.status !== "active"} onClick={() => { setActiveOrganization({ id: selectedOrganization.id, name: selectedOrganization.name, status: selectedOrganization.status }); onEnterOrganization() }} type="button">Administrar empresa</button><button className="button button--secondary" onClick={openEditForm} type="button"><Edit3 aria-hidden="true" size={17} /> Editar</button><button className="button button--secondary" disabled={isSaving} onClick={() => void handleStatusChange()} type="button">{selectedOrganization.status === "active" ? <PauseCircle aria-hidden="true" size={17} /> : <PlayCircle aria-hidden="true" size={17} />}{selectedOrganization.status === "active" ? "Suspender" : "Reactivar"}</button></div></header>
     <nav className="admin-tabs" aria-label="Secciones de empresa">{(["summary", "users", "tickets"] as const).map((tab) => <button className={activeTab === tab ? "admin-tab admin-tab--active" : "admin-tab"} key={tab} onClick={() => setActiveTab(tab)} type="button">{tab === "summary" ? "Resumen" : tab === "users" ? "Usuarios" : "Tickets"}</button>)}</nav>
+    <section className="operational-access-panel"><div><p>Acceso al sistema</p><h2>{selectedOrganization.status === "active" && selectedOrganization.operationalAccessManuallyEnabled ? "Liberado" : "Bloqueado"}</h2><span>{selectedOrganization.status === "suspended" ? "La organización está suspendida y el acceso efectivo permanece bloqueado." : selectedOrganization.operationalAccessManuallyEnabled ? "Los usuarios de esta empresa pueden ingresar al sistema operativo según sus permisos." : "El acceso operativo de los usuarios de esta empresa está bloqueado."}</span></div><div className="operational-access-panel__meta">{selectedOrganization.operationalAccessChangedAt ? <span>Último cambio: {formatDate(selectedOrganization.operationalAccessChangedAt)}</span> : <span>Sin cambios manuales registrados</span>}{selectedOrganization.operationalAccessReasonCode ? <span>Motivo: {operationalAccessReasons.find((item) => item.value === selectedOrganization.operationalAccessReasonCode)?.label ?? selectedOrganization.operationalAccessReasonCode}</span> : null}{selectedOrganization.operationalAccessReasonNote ? <span>Nota: {selectedOrganization.operationalAccessReasonNote}</span> : null}</div><button className="button button--secondary" disabled={isSaving} onClick={openAccessForm} type="button">{selectedOrganization.operationalAccessManuallyEnabled ? "Bloquear acceso" : "Liberar acceso"}</button></section>
     {activeTab === "summary" ? <section className="organization-summary-grid"><div className="organization-summary-card"><span>Usuarios utilizados</span><strong>{selectedOrganization.seatsUsed} de {selectedOrganization.seatLimit}</strong><small>Plazas ocupadas</small></div><div className="organization-summary-card"><span>Disponibles</span><strong>{selectedOrganization.seatsAvailable}</strong><small>Plazas restantes</small></div><div className="organization-summary-card"><span>Estado</span><strong>{selectedOrganization.status === "active" ? "Activa" : "Suspendida"}</strong><small>{selectedOrganization.suspendedAt ? `Desde ${formatDate(selectedOrganization.suspendedAt)}` : "Operación habilitada"}</small></div></section> : activeTab === "users" ? <OrganizationUsers organization={selectedOrganization} isSaving={isSaving} onFeedback={onFeedback} onRefreshOrganizations={loadOrganizations} onSavingChange={setIsSaving} /> : <FeedbackAdminPanel organizationId={selectedOrganization.id} />}
     {isFormOpen ? <OrganizationForm editingOrganization={editingOrganization} isSaving={isSaving} onClose={() => setIsFormOpen(false)} onSubmit={handleSave} /> : null}
+    {isAccessFormOpen ? <OperationalAccessForm enabled={!selectedOrganization.operationalAccessManuallyEnabled} isSaving={isSaving} reasonCode={accessReasonCode} reasonNote={accessReasonNote} error={accessError} onClose={() => setIsAccessFormOpen(false)} onReasonCodeChange={setAccessReasonCode} onReasonNoteChange={setAccessReasonNote} onSubmit={handleOperationalAccessChange} /> : null}
   </section>
 
   return <section className="admin-page"><header className="page-header"><div><p>Administración</p><h1>Empresas</h1><span>Administra las empresas y sus límites de usuarios.</span></div><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></header>{isLoading ? <div className="state-card">Cargando empresas...</div> : loadError ? <div className="state-card state-card--warning"><strong>No se pudieron cargar las empresas</strong><span>{loadError}</span></div> : organizations.length === 0 ? <div className="empty-state admin-empty-state"><Building2 aria-hidden="true" size={34} /><strong>No hay empresas registradas</strong><span>Crea la primera empresa para comenzar a organizar FleetMaster.</span><button className="button button--primary" onClick={openCreateForm} type="button"><Plus aria-hidden="true" size={18} /> Nueva empresa</button></div> : <div className="organization-list">{organizations.map((organization) => <button className="organization-row" key={organization.id} onClick={() => { setSelectedOrganizationId(organization.id); setActiveTab("summary") }} type="button"><span className="organization-row__icon"><Building2 aria-hidden="true" size={20} /></span><span className="organization-row__content"><strong>{organization.name}</strong><small>Usuarios: {organization.seatsUsed} de {organization.seatLimit} · Alta: {formatDate(organization.createdAt)}</small></span><span className={`organization-status organization-status--${organization.status}`}>{organization.status === "active" ? "Activa" : "Suspendida"}</span><span className="organization-row__arrow" aria-hidden="true">→</span></button>)}</div>}{isFormOpen ? <OrganizationForm editingOrganization={editingOrganization} isSaving={isSaving} onClose={() => setIsFormOpen(false)} onSubmit={handleSave} /> : null}</section>
+}
+
+function OperationalAccessForm({ enabled, isSaving, reasonCode, reasonNote, error, onClose, onReasonCodeChange, onReasonNoteChange, onSubmit }: { enabled: boolean; isSaving: boolean; reasonCode: OperationalAccessReasonCode; reasonNote: string; error: string | null; onClose: () => void; onReasonCodeChange: (value: OperationalAccessReasonCode) => void; onReasonNoteChange: (value: string) => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  return <div className="modal-backdrop"><section aria-modal="true" className="organization-form-panel" role="dialog"><header><div><p>Acceso al sistema</p><h2>{enabled ? "Liberar acceso" : "Bloquear acceso"}</h2></div><button className="icon-button" onClick={onClose} type="button" aria-label="Cerrar">×</button></header><form onSubmit={onSubmit}><p className="form-helper">La acción cambiará el acceso operativo de los usuarios de esta empresa. La cuenta, usuarios y Feedback seguirán disponibles.</p><label className="field"><span>Motivo</span><select onChange={(event) => onReasonCodeChange(event.target.value as OperationalAccessReasonCode)} value={reasonCode}>{operationalAccessReasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label><label className="field"><span>Nota opcional</span><textarea maxLength={1000} onChange={(event) => onReasonNoteChange(event.target.value)} rows={4} value={reasonNote} /></label>{error ? <p className="organization-form-error" role="alert">{error}</p> : null}<footer><button className="button button--secondary" onClick={onClose} type="button">Cancelar</button><button className="button button--primary" disabled={isSaving} type="submit">{isSaving ? "Procesando..." : enabled ? "Liberar acceso" : "Bloquear acceso"}</button></footer></form></section></div>
 }
 
 function OrganizationUsers({ organization, isSaving, onFeedback, onRefreshOrganizations, onSavingChange }: { organization: OrganizationSummary; isSaving: boolean; onFeedback: (message: string) => void; onRefreshOrganizations: () => Promise<void>; onSavingChange: (value: boolean) => void }) {

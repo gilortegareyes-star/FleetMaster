@@ -72,13 +72,15 @@ export function OrganizationAccountPage({ access }: { access: OrganizationAccess
         </div>
       </article>
 
+      <section className={`organization-account-access ${access.operationalAccessEnabled ? "organization-account-access--enabled" : "organization-account-access--blocked"}`} aria-live="polite"><div><span>Acceso al sistema</span><strong>{access.operationalAccessEnabled ? "Disponible" : "Bloqueado"}</strong></div><p>{access.operationalAccessEnabled ? "El acceso operativo de tu organización está disponible." : "El acceso operativo de tu organización no está disponible actualmente."}</p></section>
+
       <section className="organization-account-metrics" aria-labelledby="organization-account-summary-title">
         <div className="organization-account-subheading"><p className="organization-account-kicker">Resumen ejecutivo</p><h2 id="organization-account-summary-title">Estado de tu cuenta</h2></div>
         <div className="organization-account-metrics__grid">
           <article className="organization-account-metric"><span className="organization-account-metric__icon"><UsersRound aria-hidden="true" size={18} /></span><div><span>Usuarios</span><strong>{access.seatsUsed} / {access.seatLimit}</strong><small>{access.seatsAvailable} {access.seatsAvailable === 1 ? "lugar disponible" : "lugares disponibles"}</small><span className="organization-account-progress" aria-label={`${access.seatsUsed} de ${access.seatLimit} usuarios utilizados`}><span style={{ width: `${usagePercent}%` }} /></span></div></article>
           <article className="organization-account-metric"><span className="organization-account-metric__icon"><UserRound aria-hidden="true" size={18} /></span><div><span>Tu rol</span><strong>{roleLabels[access.role]}</strong><small>Acceso de administración</small></div></article>
           <article className="organization-account-metric"><span className="organization-account-metric__icon"><CalendarDays aria-hidden="true" size={18} /></span><div><span>Fecha de alta</span><strong>{formatDate(access.membershipCreatedAt)}</strong><small>Miembro activo</small></div></article>
-          <article className="organization-account-metric"><span className="organization-account-metric__icon"><Gauge aria-hidden="true" size={18} /></span><div><span>Estado</span><strong>{isActive ? "Activa" : "Suspendida"}</strong><small>{isActive ? "Sin restricciones" : "Acceso restringido"}</small></div></article>
+          <article className="organization-account-metric"><span className="organization-account-metric__icon"><Gauge aria-hidden="true" size={18} /></span><div><span>Estado</span><strong>{isActive ? "Activa" : "Suspendida"}</strong><small>{!access.operationalAccessEnabled ? "Acceso operativo bloqueado" : isActive ? "Sin restricciones" : "Acceso restringido"}</small></div></article>
         </div>
       </section>
 

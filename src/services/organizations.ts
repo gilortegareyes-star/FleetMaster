@@ -6,6 +6,7 @@ import type {
   InvitationContext,
   OrganizationInvitation,
   OrganizationAccess,
+  OperationalAccessReasonCode,
   OrganizationUserRecord,
   OrganizationStatus,
   OrganizationSummary,
@@ -21,6 +22,11 @@ interface OrganizationSummaryRow {
   seats_available: number
   created_at: string
   suspended_at: string | null
+  operational_access_manually_enabled: boolean
+  operational_access_changed_at: string | null
+  operational_access_changed_by: string | null
+  operational_access_reason_code: OperationalAccessReasonCode | null
+  operational_access_reason_note: string | null
 }
 
 const toOrganizationSummary = (row: OrganizationSummaryRow): OrganizationSummary => ({
@@ -33,6 +39,11 @@ const toOrganizationSummary = (row: OrganizationSummaryRow): OrganizationSummary
   suspendedAt: row.suspended_at,
   createdAt: row.created_at,
   updatedAt: row.created_at,
+  operationalAccessManuallyEnabled: row.operational_access_manually_enabled,
+  operationalAccessChangedAt: row.operational_access_changed_at,
+  operationalAccessChangedBy: row.operational_access_changed_by,
+  operationalAccessReasonCode: row.operational_access_reason_code,
+  operationalAccessReasonNote: row.operational_access_reason_note,
 })
 
 const throwOrganizationError = (error: { message?: string }) => {
@@ -73,6 +84,22 @@ export const setOrganizationStatus = async (organizationId: string, status: Orga
   const { data, error } = await getSupabaseClient().rpc("set_organization_status", {
     p_organization_id: organizationId,
     p_status: status,
+  })
+  if (error) throwOrganizationError(error)
+  return data
+}
+
+export const setOrganizationOperationalAccess = async (input: {
+  organizationId: string
+  enabled: boolean
+  reasonCode: OperationalAccessReasonCode
+  reasonNote?: string | null
+}) => {
+  const { data, error } = await getSupabaseClient().rpc("set_organization_operational_access", {
+    p_organization_id: input.organizationId,
+    p_enabled: input.enabled,
+    p_reason_code: input.reasonCode,
+    p_reason_note: input.reasonNote ?? null,
   })
   if (error) throwOrganizationError(error)
   return data
@@ -290,6 +317,11 @@ export const getMyOrganizationAccess = async () => {
     seat_limit: number
     seats_used: number
     seats_available: number
+    operational_access_manually_enabled: boolean
+    operational_access_enabled: boolean
+    operational_access_changed_at: string | null
+    operational_access_reason_code: OperationalAccessReasonCode | null
+    operational_access_reason_note: string | null
   }>)[0]
   if (!row) return null
   return {
@@ -303,6 +335,11 @@ export const getMyOrganizationAccess = async () => {
     seatLimit: row.seat_limit,
     seatsUsed: row.seats_used,
     seatsAvailable: row.seats_available,
+    operationalAccessManuallyEnabled: row.operational_access_manually_enabled,
+    operationalAccessEnabled: row.operational_access_enabled,
+    operationalAccessChangedAt: row.operational_access_changed_at,
+    operationalAccessReasonCode: row.operational_access_reason_code,
+    operationalAccessReasonNote: row.operational_access_reason_note,
   } satisfies OrganizationAccess
 }
 
