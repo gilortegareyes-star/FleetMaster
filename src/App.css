@@ -7293,12 +7293,16 @@
 .feedback-form-panel h2 { margin: 0; color: #1d3028; font-size: 21px; }
 .feedback-form-panel form { display: grid; gap: 16px; }
 .feedback-form-panel footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+.support-form-backdrop { place-items: center; justify-items: center; padding: 24px; overflow-y: auto; }
+.support-form-panel { box-sizing: border-box; width: min(100%, 640px); max-height: min(760px, calc(100dvh - 48px)); overflow-y: auto; border-radius: 12px; }
 @media (max-width: 760px) {
   .feedback-panel, .feedback-admin-panel { padding: 22px 20px; }
   .feedback-panel__header, .feedback-admin-panel__header { flex-direction: column; }
   .feedback-panel__body, .feedback-admin-panel__body { grid-template-columns: 1fr; }
   .feedback-ticket-row { grid-template-columns: minmax(0, 1fr) auto; }
   .feedback-ticket-row time { grid-column: 1 / -1; }
+  .support-form-backdrop { place-items: center; padding: 12px; }
+  .support-form-panel { max-height: calc(100dvh - 24px); padding: 22px 20px; }
 }
 
 .organization-account-access,
