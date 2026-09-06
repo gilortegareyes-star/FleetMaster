@@ -7,6 +7,7 @@ import {
   ExternalLink,
   FileText,
   FileUp,
+  Gauge,
   IdCard,
   ReceiptText,
   ShieldCheck,
@@ -706,20 +707,26 @@ export function VehicleDocumentPanel({
         <div>
           <h3>{circulationLabel ? `Tarjeta de circulación ${circulationLabel.toLowerCase()}` : config.title}</h3>
         </div>
-        {document && documentType !== "registration_card" ? (
-          <div className="insurance-policy-header__actions">
-            {onRegister ? (
-              <button className="button button--secondary" onClick={onRegister} type="button">
+        <div className="insurance-policy-header__actions">
+          <button className="button button--secondary unit-summary-button" onClick={onBackToSummary} type="button">
+            <Gauge aria-hidden="true" size={17} />
+            Resumen
+          </button>
+          {document && documentType !== "registration_card" ? (
+            <>
+              {onRegister ? (
+                <button className="button button--secondary" onClick={onRegister} type="button">
+                  <FileUp aria-hidden="true" size={17} />
+                  {config.uploadLabel}
+                </button>
+              ) : null}
+              <button className="button button--secondary" onClick={() => setIsFormOpen(true)} type="button">
                 <FileUp aria-hidden="true" size={17} />
-                {config.uploadLabel}
+                {config.updateLabel}
               </button>
-            ) : null}
-            <button className="button button--secondary" onClick={() => setIsFormOpen(true)} type="button">
-              <FileUp aria-hidden="true" size={17} />
-              {config.updateLabel}
-            </button>
-          </div>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </header>
 
       {isLoading ? (

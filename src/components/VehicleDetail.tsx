@@ -414,6 +414,10 @@ export function VehicleDetail({
           setReportMaintenanceId(null)
           setActiveTab("maintenance")
         }}
+        onBackToSummary={() => {
+          setReportMaintenanceId(null)
+          setActiveTab("summary")
+        }}
         onMaintenanceChanged={(changedMaintenance) =>
           setMaintenanceRecords((current) =>
             current.map((maintenance) => (maintenance.id === changedMaintenance.id ? changedMaintenance : maintenance)),
@@ -659,6 +663,7 @@ export function VehicleDetail({
 
       {activeTab === "maintenance" ? (
         <MaintenancePanel
+          onBackToSummary={() => setActiveTab("summary")}
           onRecordsChanged={setMaintenanceRecords}
           onFeedback={onFeedback}
           onVehicleMileageSynced={onVehicleMileageSynced}

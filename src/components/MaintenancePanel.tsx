@@ -1,4 +1,4 @@
-import { ArrowRight, CalendarDays, Edit3, FileText, Plus, Wrench } from "lucide-react"
+import { ArrowRight, CalendarDays, Edit3, FileText, Gauge, Plus, Wrench } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { MaintenanceForm } from "./MaintenanceForm"
 import { NewMaintenanceOrderForm } from "./NewMaintenanceOrderForm"
@@ -22,6 +22,7 @@ interface MaintenancePanelProps {
   onFeedback: (message: string) => void
   onRecordsChanged?: (records: MaintenanceRecord[]) => void
   onViewReport?: (maintenanceId: string) => void
+  onBackToSummary: () => void
 }
 
 type MaintenanceFormState =
@@ -67,6 +68,7 @@ export function MaintenancePanel({
   onFeedback,
   onRecordsChanged,
   onViewReport,
+  onBackToSummary,
 }: MaintenancePanelProps) {
   const [records, setRecords] = useState<MaintenanceRecord[]>([])
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null)
@@ -251,14 +253,18 @@ export function MaintenancePanel({
           <h3>Mantenimientos</h3>
           <span>Órdenes, historial y servicios de esta unidad</span>
         </div>
-        {!isLoading && !loadError && !openRecord ? (
-          <div className="maintenance-header__actions">
+        <div className="maintenance-header__actions">
+          {!isLoading && !loadError && !openRecord ? (
             <button className="button button--primary" onClick={openOrderForm} type="button">
               <Plus aria-hidden="true" size={17} />
               Nueva orden de mantenimiento
             </button>
-          </div>
-        ) : null}
+          ) : null}
+          <button className="button button--secondary unit-summary-button" onClick={onBackToSummary} type="button">
+            <Gauge aria-hidden="true" size={17} />
+            Resumen
+          </button>
+        </div>
       </header>
 
       {isLoading ? (

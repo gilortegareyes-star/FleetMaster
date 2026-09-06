@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleDashed, ClipboardCheck, Edit3, FileText, MinusCircle, Plus, Search, X } from "lucide-react"
+import { AlertCircle, ArrowLeft, CheckCircle2, ChevronDown, ChevronRight, Circle, CircleDashed, ClipboardCheck, Edit3, FileText, Gauge, MinusCircle, Plus, Search, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { MaintenanceReportForm } from "./MaintenanceReportForm"
 import { getMaintenanceReport, saveMaintenanceReport } from "../services/maintenanceReports"
@@ -28,6 +28,7 @@ interface MaintenanceReportViewProps {
   vehicle: Vehicle
   maintenance: MaintenanceRecord
   onBack: () => void
+  onBackToSummary: () => void
   onMaintenanceChanged: (maintenance: MaintenanceRecord) => void
 }
 
@@ -212,7 +213,7 @@ function QuickProviderModal({ isSaving, error, onClose, onSubmit }: { isSaving: 
   )
 }
 
-export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintenanceChanged }: MaintenanceReportViewProps) {
+export function MaintenanceReportView({ vehicle, maintenance, onBack, onBackToSummary, onMaintenanceChanged }: MaintenanceReportViewProps) {
   const { activeOrganization } = useOrganization()
   const { isFleetmasterAdmin, organizationAccess } = useAuth()
   const [report, setReport] = useState<MaintenanceReport | null>(null)
@@ -555,18 +556,19 @@ export function MaintenanceReportView({ vehicle, maintenance, onBack, onMaintena
             </span>
           </div>
         </div>
-        <button
-          className="button button--secondary"
-          disabled={isLoading}
-          onClick={() => {
+        <div className="maintenance-report__header-actions">
+          <button className="button button--secondary" disabled={isLoading} onClick={() => {
             setSaveError(null)
             setIsFormOpen(true)
-          }}
-          type="button"
-        >
-          <Edit3 aria-hidden="true" size={17} />
-          {maintenance.status === "open" ? "Editar orden" : report ? "Editar informe" : "Completar informe"}
-        </button>
+          }} type="button">
+            <Edit3 aria-hidden="true" size={17} />
+            {maintenance.status === "open" ? "Editar orden" : report ? "Editar informe" : "Completar informe"}
+          </button>
+          <button className="button button--secondary unit-summary-button" onClick={onBackToSummary} type="button">
+            <Gauge aria-hidden="true" size={17} />
+            Resumen
+          </button>
+        </div>
       </header>
 
       <section className="maintenance-report__order-band">
