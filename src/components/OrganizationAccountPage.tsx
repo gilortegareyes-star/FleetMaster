@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { createOrganizationClientInvitation, listOrganizationUsers } from "../services/organizations"
 import type { OrganizationAccess, OrganizationUserRecord } from "../types/organization"
 import { useAuth } from "../contexts/AuthContext"
+import { FeedbackPanel } from "./FeedbackPanel"
 
 const roleLabels = { admin: "Administrador", manager: "Manager", client: "Cliente" } as const
 
@@ -95,6 +96,7 @@ export function OrganizationAccountPage({ access }: { access: OrganizationAccess
           <form className="organization-account-invite" onSubmit={inviteClient}><div className="organization-account-invite__fields"><label className="invitation-field"><span>Nombre completo</span><input autoComplete="name" onChange={(event) => setName(event.target.value)} placeholder="Ej. Juan Pérez" required value={name} /></label><label className="invitation-field"><span>Correo electrónico</span><div className="login-field__control"><Mail aria-hidden="true" size={18} /><input autoComplete="email" onChange={(event) => setEmail(event.target.value)} placeholder="usuario@empresa.com" required type="email" value={email} /></div></label></div>{error ? <p className="invitation-error" role="alert">{error}</p> : null}{feedback ? <p className="invitation-success" role="status">{feedback}</p> : null}<div className="organization-account-invite__notice"><Info aria-hidden="true" size={17} /><span>El usuario recibirá un correo con instrucciones para activar su cuenta y unirse a {access.organizationName}.</span></div><div className="organization-account-invite__footer"><span className="organization-account-invite__hint">La invitación será válida durante 7 días.</span><button className="button button--primary" disabled={sending} type="submit"><UserPlus aria-hidden="true" size={17} />{sending ? "Registrando..." : "Invitar usuario"}</button></div></form>
         </section>
       </> : <div className="organization-account-users organization-account-users--client"><UsersRound aria-hidden="true" size={20} /><p>Tu cuenta tiene acceso a la organización. La administración de usuarios corresponde al Manager.</p></div>}
+      <FeedbackPanel />
     </section>
   </main>
 }
