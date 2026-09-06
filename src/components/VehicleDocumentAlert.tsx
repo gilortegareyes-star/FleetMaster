@@ -11,11 +11,17 @@ export function VehicleDocumentAlert({ alerts }: { alerts: DocumentAlert[] }) {
   return (
     <span
       aria-label={`Documentación que requiere atención: ${summary}`}
-      className="vehicle-card__document-warning"
+      className="vehicle-document-alert"
       onClick={(event) => event.stopPropagation()}
-      title={`Documentación que requiere atención\n• ${alerts.map((alert) => alert.label).join("\n• ")}`}
+      onKeyDown={(event) => event.stopPropagation()}
+      role="img"
+      tabIndex={0}
     >
       <TriangleAlert aria-hidden="true" fill="none" size={18} strokeWidth={2} />
+      <span className="vehicle-document-alert__tooltip" role="tooltip">
+        <strong>Documentación que requiere atención</strong>
+        {alerts.map((alert) => <span key={alert.code}>• {alert.label}</span>)}
+      </span>
     </span>
   )
 }
