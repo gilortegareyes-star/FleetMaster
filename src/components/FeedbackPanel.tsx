@@ -1,6 +1,7 @@
 import { MessageSquare, Plus, Send, X } from "lucide-react"
 import { useEffect, useState, type FormEvent } from "react"
 import { addFeedbackTicketMessage, createFeedbackTicket, getFeedbackTicketMessages, listMyFeedbackTickets } from "../services/feedback"
+import { getSupabaseClient } from "../services/supabase"
 import { feedbackCategories, type FeedbackCategory, type FeedbackStatus, type FeedbackTicket, type FeedbackTicketMessage } from "../types/feedback"
 
 const categoryLabels: Record<FeedbackCategory, string> = { problem: "Problema", improvement: "Mejora", suggestion: "Sugerencia", support: "Soporte" }
@@ -21,7 +22,24 @@ export function FeedbackPanel() {
 
   const refresh = async () => { setLoading(true); setError(null); try { setTickets(await listMyFeedbackTickets()) } catch (loadError) { setError(loadError instanceof Error ? loadError.message : "No se pudieron cargar tus tickets.") } finally { setLoading(false) } }
   useEffect(() => { void refresh() }, [])
-  const openTicket = async (ticket: FeedbackTicket) => { setSelected(ticket); setLoadingMessages(true); setError(null); try { setMessages(await getFeedbackTicketMessages(ticket.id)) } catch (loadError) { setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la conversación.") } finally { setLoadingMessages(false) } }
+  const openTicket = (ticket: FeedbackTicket) => { setSelected(ticket); setMessages([]); setError(null) }
+  useEffect(() => {
+    if (!selected) return
+    let active = true
+    setLoadingMessages(true)
+    const mergeMessages = (incoming: FeedbackTicketMessage[]) => {
+      setMessages((current) => [...new Map([...current, ...incoming].map((item) => [item.id, item])).values()].sort((left, right) => left.createdAt.localeCompare(right.createdAt)))
+    }
+    const channel = getSupabaseClient().channel(`feedback-ticket-${selected.id}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feedback_ticket_messages", filter: `ticket_id=eq.${selected.id}` }, (payload) => {
+        const row = payload.new as { id?: string; ticket_id?: string; organization_id?: string; author_id?: string; message?: string; created_at?: string }
+        if (!row.id || !row.ticket_id || !row.organization_id || !row.author_id || !row.message || !row.created_at) return
+        mergeMessages([{ id: row.id, ticketId: row.ticket_id, organizationId: row.organization_id, authorId: row.author_id, authorName: null, message: row.message, createdAt: row.created_at }])
+      })
+    channel.subscribe((status) => { if (status === "SUBSCRIBED") void getFeedbackTicketMessages(selected.id).then((loaded) => { if (active) mergeMessages(loaded) }).catch(() => { if (active) setError("No se pudo actualizar la conversación.") }) })
+    void getFeedbackTicketMessages(selected.id).then((loaded) => { if (active) mergeMessages(loaded) }).catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : "No se pudo cargar la conversación.") }).finally(() => { if (active) setLoadingMessages(false) })
+    return () => { active = false; void getSupabaseClient().removeChannel(channel) }
+  }, [selected])
   const submitTicket = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const form = new FormData(event.currentTarget); setError(null); try { const ticket = await createFeedbackTicket(String(form.get("title") ?? "").trim(), String(form.get("category") ?? "problem") as FeedbackCategory, String(form.get("message") ?? "").trim()); setIsFormOpen(false); setSuccess("Ticket creado correctamente."); await refresh(); await openTicket(ticket) } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "No se pudo crear el ticket.") } }
   const submitMessage = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!selected || selected.status === "closed" || sendingReply) return; const message = reply.trim(); if (!message) return; setError(null); setSendingReply(true); try { await addFeedbackTicketMessage(selected.id, message); setReply(""); setMessages(await getFeedbackTicketMessages(selected.id)); setTickets(await listMyFeedbackTickets()) } catch (submitError) { setError(submitError instanceof Error ? submitError.message : "No se pudo enviar la respuesta.") } finally { setSendingReply(false) } }
   return <section className="feedback-panel" aria-labelledby="feedback-title">
