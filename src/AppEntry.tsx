@@ -32,35 +32,9 @@ export default function AppEntry() {
   const [supportUnreadOrganizations, setSupportUnreadOrganizations] = useState<FeedbackAdminUnreadOrganization[]>([])
 
   const refreshSupportUnread = async () => {
-    const safeError = (error: unknown) => {
-      if (!error || typeof error !== "object") return {}
-      const candidate = error as { code?: unknown; message?: unknown; rawMessage?: unknown; details?: unknown; hint?: unknown }
-      return {
-        ...(typeof candidate.code === "string" ? { code: candidate.code } : {}),
-        ...(typeof candidate.rawMessage === "string" ? { message: candidate.rawMessage } : typeof candidate.message === "string" ? { message: candidate.message } : {}),
-        ...(typeof candidate.details === "string" ? { details: candidate.details } : {}),
-        ...(typeof candidate.hint === "string" ? { hint: candidate.hint } : {}),
-      }
-    }
-
     if (isFleetmasterAdmin) {
       try {
-        const [tickets, organizations] = await Promise.all([
-          listFeedbackUnreadTickets().then((result) => {
-            console.debug("[FLEET-5E DEBUG] unread tickets response", { count: result.length, ticketIds: result.map((ticket) => ticket.ticketId) })
-            return result
-          }).catch((error) => {
-            console.error("[FLEET-5E DEBUG] unread tickets error", safeError(error))
-            throw error
-          }),
-          listFeedbackAdminUnreadSummary().then((result) => {
-            console.debug("[FLEET-5E DEBUG] admin unread summary response", { count: result.length, organizations: result.map((organization) => ({ organizationId: organization.organizationId, unreadCount: organization.unreadCount })) })
-            return result
-          }).catch((error) => {
-            console.error("[FLEET-5E DEBUG] admin unread summary error", safeError(error))
-            throw error
-          }),
-        ])
+        const [tickets, organizations] = await Promise.all([listFeedbackUnreadTickets(), listFeedbackAdminUnreadSummary()])
         setSupportUnreadTickets(tickets)
         setSupportUnreadOrganizations(organizations)
       } catch {
@@ -73,10 +47,8 @@ export default function AppEntry() {
     if (organizationAccess) {
       try {
         const tickets = await listFeedbackUnreadTickets()
-        console.debug("[FLEET-5E DEBUG] unread tickets response", { count: tickets.length, ticketIds: tickets.map((ticket) => ticket.ticketId), organizationId: organizationAccess.organizationId })
         setSupportUnreadTickets(tickets)
-      } catch (error) {
-        console.error("[FLEET-5E DEBUG] unread tickets error", safeError(error))
+      } catch {
         setSupportUnreadTickets([])
       }
       setSupportUnreadOrganizations([])
@@ -99,9 +71,6 @@ export default function AppEntry() {
 
   useEffect(() => {
     let active = true
-    if (session) {
-      console.debug("[FLEET-5E DEBUG] unread identity", { role: isFleetmasterAdmin ? "fleetmaster_admin" : organizationAccess?.role ?? "organization_user", isFleetmasterAdmin, organizationId: organizationAccess?.organizationId ?? null })
-    }
     if (!session || loading || authorizationLoading || organizationAccessLoading || (!isFleetmasterAdmin && !organizationAccess)) {
       void refreshSupportUnread()
       return () => {
