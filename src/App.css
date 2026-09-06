@@ -737,19 +737,11 @@
 }
 
 .units-page,
-.unit-center-page,
-.home-panel {
+.unit-center-page {
   width: min(1460px, 100%);
   margin: 0 auto;
 }
 
-.home-panel {
-  min-height: calc(100vh - 56px);
-  display: grid;
-  align-content: center;
-}
-
-.home-panel p,
 .page-header p,
 .vehicle-form__header p {
   margin: 0 0 8px;
@@ -759,7 +751,6 @@
   text-transform: uppercase;
 }
 
-.home-panel h1,
 .page-header h1 {
   margin: 0;
   color: #17211d;
@@ -767,7 +758,6 @@
   line-height: 1.08;
 }
 
-.home-panel span,
 .page-header span {
   display: block;
   margin-top: 10px;

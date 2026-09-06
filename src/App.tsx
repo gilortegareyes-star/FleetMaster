@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, Home, LayoutGrid, List, LogOut, Plus, Search, Settings2, UserRound, Wrench } from "lucide-react"
+import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, LayoutGrid, List, LogOut, Plus, Search, Settings2, UserRound, Wrench } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleTable } from "./components/VehicleTable"
@@ -389,14 +389,6 @@ function App() {
         </div>
         <nav aria-label="Principal">
           <button
-            className={activeView === "inicio" ? "nav-item nav-item--active" : "nav-item"}
-            onClick={() => navigateTo("inicio")}
-            type="button"
-          >
-            <Home aria-hidden="true" size={19} />
-            Inicio
-          </button>
-          <button
             className={activeView === "unidades" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => {
               navigateTo("unidades", true)
@@ -442,12 +434,6 @@ function App() {
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} />
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
-        ) : activeView === "inicio" ? (
-          <section className="home-panel">
-            <p>Inicio</p>
-            <h1>FleetMaster II</h1>
-            <span>La administracion de tu flotilla comenzara desde el expediente de cada unidad.</span>
-          </section>
         ) : (
           <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
             {isVehicleCenterOpen && selectedVehicle ? (
