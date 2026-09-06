@@ -223,7 +223,6 @@ Deno.serve(async (request) => {
   const origin = request.headers.get("origin")
   const correlationId = crypto.randomUUID()
 
-  log(correlationId, { stage: "request_received", organization_id: null })
   if (!origin || !ALLOWED_ORIGINS.has(origin)) return json({ ok: false, code: "permission_denied" }, 403, origin, correlationId)
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) })
   if (request.method !== "POST") return json({ ok: false, code: "invalid_request" }, 405, origin, correlationId)
@@ -234,7 +233,6 @@ Deno.serve(async (request) => {
     log(correlationId, { stage: "authentication_failed", reason: "missing_bearer_token" })
     return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
   }
-  log(correlationId, { stage: "bearer_token_received" })
 
   let organizationId: string
   try {
@@ -248,7 +246,6 @@ Deno.serve(async (request) => {
   let caller: SupabaseClient
   try {
     caller = createCallerClient(authorization)
-    log(correlationId, { stage: "auth_get_user_started" })
     const { data: userData, error: userError } = await caller.auth.getUser()
     if (userError || !userData.user) {
       log(correlationId, {
@@ -261,18 +258,14 @@ Deno.serve(async (request) => {
       return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
     }
     callerId = userData.user.id
-    log(correlationId, { stage: "authenticated", actor_id: callerId, organization_id: organizationId })
 
     const { data: isAdmin, error: adminCheckError } = await caller.rpc("is_fleetmaster_admin")
     if (adminCheckError) return json({ ok: false, code: "authorization_check_failed" }, 500, origin, correlationId)
     if (!isAdmin) return json({ ok: false, code: "permission_denied" }, 403, origin, correlationId)
-    log(correlationId, { stage: "authorized", actor_id: callerId, organization_id: organizationId })
   } catch (error) {
     if (error instanceof DeletionError) return json({ ok: false, code: error.code }, error.status, origin, correlationId)
     return json({ ok: false, code: "internal_error" }, 500, origin, correlationId)
   }
-
-  log(correlationId, { stage: "authenticated_authorized", caller_user_id: callerId, organization_id: organizationId })
 
   try {
     const admin = createAdminClient()
