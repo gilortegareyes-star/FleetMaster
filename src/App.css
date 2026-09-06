@@ -7297,7 +7297,7 @@
 .support-ticket-modal__footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .nav-item__badge,
 .support-ticket__unread,
-.organization-support-summary em { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; color: #176d4d; background: #e2f4e9; font-size: 11px; font-style: normal; font-weight: 800; }
+.organization-support-summary em { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; color: #fff; background: #c83f4d; font-size: 11px; font-style: normal; font-weight: 800; }
 .nav-item__badge { margin-left: auto; }
 .support-ticket__top { align-items: center; }
 .support-ticket__unread { min-width: 0; height: 18px; padding-inline: 6px; font-size: 10px; }
