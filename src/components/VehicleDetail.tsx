@@ -430,10 +430,18 @@ export function VehicleDetail({
 
   return (
     <article className="vehicle-detail">
-      <button className="fleet-back-button" onClick={onBackToFleet} type="button">
-        <ArrowLeft aria-hidden="true" size={17} />
-        Atrás
-      </button>
+      <div className="vehicle-detail__topbar">
+        <button className="fleet-back-button" onClick={onBackToFleet} type="button">
+          <ArrowLeft aria-hidden="true" size={17} />
+          Atrás
+        </button>
+        {activeTab === "summary" ? (
+          <button className="button button--secondary vehicle-detail__edit-action" onClick={onEdit} type="button">
+            <Edit3 aria-hidden="true" size={17} />
+            Editar unidad
+          </button>
+        ) : null}
+      </div>
 
       <header className="vehicle-detail__hero">
         <div>
@@ -509,10 +517,6 @@ export function VehicleDetail({
               </button>
             ))}
           </div>
-          <button className="button button--secondary vehicle-tabs-row__action" onClick={onEdit} type="button">
-            <Edit3 aria-hidden="true" size={17} />
-            Editar unidad
-          </button>
         </div>
       ) : null}
 

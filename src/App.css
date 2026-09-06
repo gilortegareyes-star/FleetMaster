@@ -1349,12 +1349,21 @@
   box-shadow: 0 22px 58px rgba(31, 45, 39, 0.07);
 }
 
+.vehicle-detail__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 18px 0;
+}
+
 .fleet-back-button {
   min-height: 46px;
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  margin: 18px 18px 0;
+  margin: 0;
   border: 0;
   border-radius: 8px;
   padding: 0 15px;
@@ -1629,10 +1638,6 @@
   border-color: #9ac8bd;
   background: #e7f4f0;
   color: #0f766e;
-}
-
-.vehicle-tabs-row__action {
-  flex: 0 0 auto;
 }
 
 .unit-summary {
@@ -5208,10 +5213,6 @@
     align-items: stretch;
     flex-wrap: wrap;
     padding-inline: 14px;
-  }
-
-  .vehicle-tabs-row__action {
-    margin-left: auto;
   }
 
   .vehicle-tab {
