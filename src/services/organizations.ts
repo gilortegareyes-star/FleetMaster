@@ -206,6 +206,9 @@ export const sendManagerInvitation = async (input: { organizationId: string; nam
     }
   }
   const messages: Record<string, string> = {
+    "auth-link-failed": "No se pudo generar el enlace de invitación. Intenta nuevamente.",
+    "resend-delivery-failed": "No se pudo enviar el correo de invitación. Intenta nuevamente.",
+    "missing-server-config": "No se pudo enviar la invitación por un problema de configuración.",
     no_seats_available: "No hay lugares disponibles para este usuario.",
     seat_limit_reached: "No hay plazas disponibles para enviar esta invitación.",
     pending_invitation_exists: "Ya existe una invitación pendiente para este Manager.",

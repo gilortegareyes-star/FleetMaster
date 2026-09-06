@@ -221,6 +221,24 @@ const createInvitation = async (caller: SupabaseClient, input: InviteRequest) =>
   return data as InvitationRow
 }
 
+const compensateInvitation = async (admin: SupabaseClient, invitationId: string, correlationId: string) => {
+  const { data, error } = await admin
+    .from("organization_invitations")
+    .update({ status: "revoked", revoked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", invitationId)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle()
+
+  if (error || !data) {
+    log(correlationId, { stage: "invitation_compensation_failed", invitation_id: invitationId })
+    return false
+  }
+
+  log(correlationId, { stage: "invitation_compensated", invitation_id: invitationId })
+  return true
+}
+
 const generateActionLink = async (
   admin: SupabaseClient,
   email: string,
@@ -328,6 +346,8 @@ Deno.serve(async (request) => {
       input = { ...input, role: "client" }
     }
 
+    if (!Deno.env.get("RESEND_API_KEY")) throw new Error("missing-server-config")
+
     const { data: organization, error: organizationError } = await admin
       .from("organizations")
       .select("name,status")
@@ -346,14 +366,16 @@ Deno.serve(async (request) => {
       actionLink = await generateActionLink(admin, input.email, Boolean(existingUser), invitation.id)
     } catch {
       log(correlationId, { stage: "auth_link_failed", caller_user_id: callerId, organization_id: input.organization_id, invitation_id: invitation.id })
-      return json({ ok: false, code: "delivery_failed" }, 502, origin)
+      await compensateInvitation(admin, invitation.id, correlationId)
+      return json({ ok: false, code: "auth-link-failed" }, 502, origin)
     }
 
     try {
       await sendInvitationEmail(input, organization as OrganizationRow, invitation, actionLink, Boolean(existingUser))
     } catch {
       log(correlationId, { stage: "resend_failed", caller_user_id: callerId, organization_id: input.organization_id, invitation_id: invitation.id })
-      return json({ ok: false, code: "delivery_failed" }, 502, origin)
+      await compensateInvitation(admin, invitation.id, correlationId)
+      return json({ ok: false, code: "resend-delivery-failed" }, 502, origin)
     }
 
     log(correlationId, { stage: "delivery_succeeded", caller_user_id: callerId, organization_id: input.organization_id, invitation_id: invitation.id })
@@ -367,6 +389,7 @@ Deno.serve(async (request) => {
       return json({ ok: false, code: "user_not_eligible" }, 409, origin)
     }
     if (message === "organization-suspended") return json({ ok: false, code: "organization_suspended" }, 409, origin)
+    if (message === "missing-server-config") return json({ ok: false, code: "missing-server-config" }, 500, origin)
     if (message === "organization-not-found") return json({ ok: false, code: "internal_error" }, 404, origin)
     return json({ ok: false, code: safeErrorCode(message) }, 409, origin)
   }
