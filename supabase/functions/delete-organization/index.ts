@@ -23,7 +23,26 @@ class DeletionError extends Error {
   }
 }
 
-const json = (body: Record<string, unknown>, status: number, origin: string | null) => {
+const SAFE_MESSAGES: Record<string, string> = {
+  invalid_request: "No se pudo identificar la empresa seleccionada.",
+  unauthorized: "Tu sesión ya no es válida. Inicia sesión nuevamente.",
+  permission_denied: "No tienes autorización para eliminar esta empresa.",
+  authorization_check_failed: "No fue posible validar la autorización. Inténtalo nuevamente.",
+  organization_not_found: "La empresa ya no está disponible.",
+  organization_already_deleted: "Esta empresa ya fue eliminada.",
+  organization_must_be_suspended: "La empresa debe estar suspendida antes de poder eliminarla.",
+  storage_list_failed: "No fue posible preparar los documentos de la empresa para su eliminación.",
+  organization_lookup_failed: "No fue posible consultar la empresa. Inténtalo nuevamente.",
+  storage_cleanup_failed: "No fue posible limpiar los documentos de la empresa. Inténtalo nuevamente.",
+  storage_remove_failed: "No fue posible limpiar los documentos de la empresa. Inténtalo nuevamente.",
+  storage_verification_failed: "No se pudo verificar la limpieza de documentos. Inténtalo nuevamente.",
+  storage_not_empty: "No se pudo verificar la limpieza de documentos. Inténtalo nuevamente.",
+  database_deletion_failed: "No fue posible eliminar la empresa. Inténtalo nuevamente.",
+  missing_server_config: "No fue posible completar la eliminación. Inténtalo nuevamente.",
+  internal_error: "No fue posible completar la eliminación. Inténtalo nuevamente.",
+}
+
+const json = (body: Record<string, unknown>, status: number, origin: string | null, correlationId: string) => {
   const headers = new Headers({
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
@@ -34,7 +53,9 @@ const json = (body: Record<string, unknown>, status: number, origin: string | nu
     headers.set("Vary", "Origin")
   }
 
-  return new Response(JSON.stringify(body), { status, headers })
+  const code = typeof body.code === "string" ? body.code : status >= 400 ? "internal_error" : "organization_deleted"
+  const message = typeof body.message === "string" ? body.message : status < 400 ? "Empresa eliminada correctamente." : SAFE_MESSAGES[code] ?? SAFE_MESSAGES.internal_error
+  return new Response(JSON.stringify({ success: status < 400, ...body, code, message, correlationId }), { status, headers })
 }
 
 const corsHeaders = (origin: string) => ({
@@ -86,15 +107,16 @@ const createAdminClient = () => {
   })
 }
 
-const assertOrganizationExists = async (admin: SupabaseClient, organizationId: string) => {
+const loadOrganization = async (admin: SupabaseClient, organizationId: string) => {
   const { data, error } = await admin
     .from("organizations")
-    .select("id")
+    .select("id, name, status")
     .eq("id", organizationId)
     .maybeSingle()
 
   if (error) throw new DeletionError("organization_lookup_failed", 500)
   if (!data) throw new DeletionError("organization_not_found", 404)
+  return data as { id: string; name: string; status: string }
 }
 
 const safeObjectPath = (path: string, prefix: string) => {
@@ -161,11 +183,12 @@ const cleanTenantStorage = async (admin: SupabaseClient, organizationId: string,
     }
 
     const { error } = await admin.storage.from(STORAGE_BUCKET).remove(batch)
-    if (error) throw new DeletionError("storage_remove_failed", 500)
+    if (error) throw new DeletionError("storage_cleanup_failed", 500)
+    log(correlationId, { stage: "storage_deleted", organization_id: organizationId, object_count: batch.length })
   }
 
   const remaining = await listTenantObjects(admin, organizationId)
-  if (remaining.length > 0) throw new DeletionError("storage_not_empty", 500)
+  if (remaining.length > 0) throw new DeletionError("storage_verification_failed", 500)
   log(correlationId, { stage: "storage_verified_empty", organization_id: organizationId })
 }
 
@@ -191,53 +214,64 @@ Deno.serve(async (request) => {
   const origin = request.headers.get("origin")
   const correlationId = crypto.randomUUID()
 
-  if (!origin || !ALLOWED_ORIGINS.has(origin)) return json({ ok: false, code: "permission_denied" }, 403, origin)
+  log(correlationId, { stage: "request_received", organization_id: null })
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) return json({ ok: false, code: "permission_denied" }, 403, origin, correlationId)
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) })
-  if (request.method !== "POST") return json({ ok: false, code: "invalid_request" }, 405, origin)
+  if (request.method !== "POST") return json({ ok: false, code: "invalid_request" }, 405, origin, correlationId)
 
   const token = bearerToken(request)
-  if (!token) return json({ ok: false, code: "unauthorized" }, 401, origin)
+  if (!token) return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
 
   let organizationId: string
   try {
     organizationId = parseOrganizationId(await request.json())
   } catch (error) {
-    if (error instanceof DeletionError) return json({ ok: false, code: error.code }, error.status, origin)
-    return json({ ok: false, code: "invalid_request" }, 400, origin)
+    if (error instanceof DeletionError) return json({ ok: false, code: error.code }, error.status, origin, correlationId)
+    return json({ ok: false, code: "invalid_request" }, 400, origin, correlationId)
   }
 
-  let callerId: string
+  let callerId: string | null = null
   let caller: SupabaseClient
   try {
     caller = createCallerClient(token)
     const { data: userData, error: userError } = await caller.auth.getUser(token)
-    if (userError || !userData.user) return json({ ok: false, code: "unauthorized" }, 401, origin)
+    if (userError || !userData.user) return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
     callerId = userData.user.id
+    log(correlationId, { stage: "authenticated", actor_id: callerId, organization_id: organizationId })
 
     const { data: isAdmin, error: adminCheckError } = await caller.rpc("is_fleetmaster_admin")
-    if (adminCheckError) return json({ ok: false, code: "authorization_check_failed" }, 500, origin)
-    if (!isAdmin) return json({ ok: false, code: "permission_denied" }, 403, origin)
+    if (adminCheckError) return json({ ok: false, code: "authorization_check_failed" }, 500, origin, correlationId)
+    if (!isAdmin) return json({ ok: false, code: "permission_denied" }, 403, origin, correlationId)
+    log(correlationId, { stage: "authorized", actor_id: callerId, organization_id: organizationId })
   } catch (error) {
-    if (error instanceof DeletionError) return json({ ok: false, code: error.code }, error.status, origin)
-    return json({ ok: false, code: "internal_error" }, 500, origin)
+    if (error instanceof DeletionError) return json({ ok: false, code: error.code }, error.status, origin, correlationId)
+    return json({ ok: false, code: "internal_error" }, 500, origin, correlationId)
   }
 
   log(correlationId, { stage: "authenticated_authorized", caller_user_id: callerId, organization_id: organizationId })
 
   try {
     const admin = createAdminClient()
-    await assertOrganizationExists(admin, organizationId)
+    const organization = await loadOrganization(admin, organizationId)
+    log(correlationId, { stage: "organization_loaded", actor_id: callerId, organization_id: organization.id })
+    if (organization.status !== "suspended") {
+      log(correlationId, { stage: "organization_status_checked", actor_id: callerId, organization_id: organization.id, error_code: "organization_must_be_suspended" })
+      return json({ ok: false, code: "organization_must_be_suspended" }, 409, origin, correlationId)
+    }
+    log(correlationId, { stage: "organization_status_checked", actor_id: callerId, organization_id: organization.id })
     await cleanTenantStorage(admin, organizationId, correlationId)
-    const result = await callDeletionRpc(admin, organizationId, callerId)
-    log(correlationId, { stage: "database_deleted", organization_id: organizationId })
+    log(correlationId, { stage: "rpc_started", actor_id: callerId, organization_id: organizationId })
+    const result = await callDeletionRpc(admin, organizationId, callerId!)
+    log(correlationId, { stage: "rpc_completed", actor_id: callerId, organization_id: organizationId })
     return json({
       ok: true,
+      message: "Empresa eliminada correctamente.",
       organizationId: result.deleted_organization_id,
       organizationName: result.deleted_organization_name,
-    }, 200, origin)
+    }, 200, origin, correlationId)
   } catch (error) {
     const deletionError = error instanceof DeletionError ? error : new DeletionError("internal_error", 500)
-    log(correlationId, { stage: "failed", organization_id: organizationId, error_code: deletionError.code })
-    return json({ ok: false, code: deletionError.code }, deletionError.status, origin)
+    log(correlationId, { stage: "failed", actor_id: callerId, organization_id: organizationId, error_code: deletionError.code })
+    return json({ ok: false, code: deletionError.code }, deletionError.status, origin, correlationId)
   }
 })

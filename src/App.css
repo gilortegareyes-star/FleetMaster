@@ -640,6 +640,13 @@
   font-size: 0.86rem;
 }
 
+.organization-delete-error small {
+  display: block;
+  margin-top: 4px;
+  color: #6f7f79;
+  font-size: 0.78rem;
+}
+
 .organization-delete-modal > footer {
   display: flex;
   justify-content: flex-end;

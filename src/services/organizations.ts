@@ -198,24 +198,29 @@ export const listOrganizationUsers = async (organizationId: string) => {
 
 export class OrganizationDeletionError extends Error {
   code: string
+  correlationId: string | null
 
-  constructor(code: string, message: string) {
+  constructor(code: string, message: string, correlationId: string | null = null) {
     super(message)
     this.name = "OrganizationDeletionError"
     this.code = code
+    this.correlationId = correlationId
   }
 }
 
-const getEdgeFunctionErrorCode = async (error: unknown) => {
-  if (!error || typeof error !== "object" || !("context" in error)) return ""
+const getEdgeFunctionError = async (error: unknown) => {
+  if (!error || typeof error !== "object" || !("context" in error)) return { code: "", correlationId: null }
   const context = error.context
-  if (!context || typeof context !== "object" || !("clone" in context) || typeof context.clone !== "function") return ""
+  if (!context || typeof context !== "object" || !("clone" in context) || typeof context.clone !== "function") return { code: "", correlationId: null }
 
   try {
-    const body = await (context as Response).clone().json() as { code?: unknown }
-    return typeof body.code === "string" ? body.code : ""
+    const body = await (context as Response).clone().json() as { code?: unknown; correlationId?: unknown }
+    return {
+      code: typeof body.code === "string" ? body.code : "",
+      correlationId: typeof body.correlationId === "string" ? body.correlationId : null,
+    }
   } catch {
-    return ""
+    return { code: "", correlationId: null }
   }
 }
 
@@ -224,8 +229,10 @@ export const deleteOrganization = async (organizationId: string) => {
     body: { organizationId },
   })
 
-  let code = data && typeof data === "object" && "code" in data ? String(data.code) : ""
-  if (!code) code = await getEdgeFunctionErrorCode(error)
+  const responseData = data && typeof data === "object" ? data as { code?: unknown; correlationId?: unknown; ok?: unknown } : null
+  const responseError = await getEdgeFunctionError(error)
+  const code = typeof responseData?.code === "string" ? responseData.code : responseError.code
+  const correlationId = typeof responseData?.correlationId === "string" ? responseData.correlationId : responseError.correlationId
   if (!error && data?.ok === true) return data
 
   const messages: Record<string, string> = {
@@ -234,11 +241,15 @@ export const deleteOrganization = async (organizationId: string) => {
     permission_denied: "No tienes autorización para eliminar esta empresa.",
     organization_not_found: "La empresa ya no está disponible.",
     organization_already_deleted: "Esta empresa ya fue eliminada.",
+    organization_must_be_suspended: "La empresa debe estar suspendida antes de poder eliminarla.",
     storage_list_failed: "No fue posible preparar los documentos de la empresa para su eliminación.",
+    storage_cleanup_failed: "No fue posible limpiar los documentos de la empresa. Inténtalo nuevamente.",
     storage_remove_failed: "No fue posible limpiar los documentos de la empresa. Inténtalo nuevamente.",
-    storage_not_empty: "No se pudo completar la limpieza de documentos. Inténtalo nuevamente.",
+    storage_verification_failed: "No se pudo verificar la limpieza de documentos. Inténtalo nuevamente.",
+    storage_not_empty: "No se pudo verificar la limpieza de documentos. Inténtalo nuevamente.",
+    database_deletion_failed: "No fue posible eliminar la empresa. Inténtalo nuevamente.",
   }
-  throw new OrganizationDeletionError(code, messages[code] ?? "No fue posible completar la eliminación. Inténtalo nuevamente.")
+  throw new OrganizationDeletionError(code, messages[code] ?? "No fue posible completar la eliminación. Inténtalo nuevamente.", correlationId)
 }
 
 export const createManagerInvitation = async (input: CreateManagerInvitationInput) => {
