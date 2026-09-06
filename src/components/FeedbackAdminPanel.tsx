@@ -73,9 +73,9 @@ const getInitials = (name: string | null, fallback: string) => {
     : source.slice(0, 2).toUpperCase();
 };
 type SupportTimelineItem =
-  | { kind: "message"; at: string; item: FeedbackTicketMessage }
-  | { kind: "close-request"; at: string; item: FeedbackTicketCloseRequest }
-  | { kind: "closed"; at: string };
+  | { kind: "message"; at: string; item: FeedbackTicketMessage; order: number }
+  | { kind: "close-request"; at: string; item: FeedbackTicketCloseRequest; order: number }
+  | { kind: "closed"; at: string; order: number };
 
 export function FeedbackAdminPanel({
   onRefreshUnread,
@@ -109,10 +109,20 @@ export function FeedbackAdminPanel({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const timeline = useMemo<SupportTimelineItem[]>(() => {
-    const items: SupportTimelineItem[] = messages.map((item) => ({ kind: "message", at: item.createdAt, item }));
-    if (pendingClose) items.push({ kind: "close-request", at: pendingClose.requestedAt, item: pendingClose });
-    if (selected?.status === "closed") items.push({ kind: "closed", at: selected.closedAt ?? selected.updatedAt });
-    return items.sort((left, right) => left.at.localeCompare(right.at));
+    const items: SupportTimelineItem[] = messages.map((item, order) => ({ kind: "message", at: item.createdAt, item, order }));
+    if (pendingClose) items.push({ kind: "close-request", at: pendingClose.requestedAt, item: pendingClose, order: items.length });
+    if (selected?.status === "closed") items.push({ kind: "closed", at: selected.closedAt ?? selected.updatedAt, order: items.length });
+    return items.sort((left, right) => {
+      const leftTime = Date.parse(left.at);
+      const rightTime = Date.parse(right.at);
+      const leftInvalid = Number.isNaN(leftTime);
+      const rightInvalid = Number.isNaN(rightTime);
+      if (leftInvalid || rightInvalid) {
+        if (leftInvalid !== rightInvalid) return leftInvalid ? 1 : -1;
+        return left.order - right.order;
+      }
+      return leftTime - rightTime || left.order - right.order;
+    });
   }, [messages, pendingClose, selected]);
   useEffect(() => {
     if (!loadingMessages && stickToBottomRef.current) {
