@@ -318,20 +318,26 @@ export function VehicleDetail({
   const registrationPanelTypes = registrationViewTypes.length > 0 ? registrationViewTypes : [null]
   const registrationDocumentExists = Boolean(registrationCards.state || registrationCards.federal)
   const insuranceAction = !insurancePolicy
-    ? "Cargar póliza"
+    ? "Cargar documento"
     : insuranceStatus.tone === "current"
-      ? "Ver póliza"
-      : "Actualizar póliza"
+      ? "Ver documento"
+      : "Actualizar documento"
   const registrationAction = registrationComplete
-    ? "Ver tarjeta"
+    ? "Ver documento"
     : registrationDocumentExists
-      ? "Actualizar tarjeta"
-      : "Cargar tarjeta"
+      ? "Actualizar documento"
+      : "Cargar documento"
   const inspectionAction = !vehicleInspection
     ? "Registrar"
     : inspectionStatus.tone === "warning" || inspectionStatus.tone === "expired"
-      ? "Actualizar verificación"
-      : "Ver verificación"
+      ? "Actualizar documento"
+      : "Ver documento"
+
+  const documentActionAriaLabels = {
+    "Póliza de seguro": `${insuranceAction} de seguro`,
+    "Tarjeta de circulación": `${registrationAction} de circulación`,
+    "Verificación vehicular": `${inspectionAction} vehicular`,
+  }
 
   const documentShortcuts = [
     {
@@ -586,12 +592,9 @@ export function VehicleDetail({
                   <span>{documentSummaryError}</span>
                 </div>
               ) : documentShortcuts.map((item) => (
-                <button
-                  aria-label={`${item.action} ${item.label}`}
+                <div
                   className="document-shortcut"
                   key={item.label}
-                  onClick={item.onClick}
-                  type="button"
                 >
                   <span className="document-shortcut__icon">{item.icon}</span>
                   {item.isRequired && item.isPending ? <TriangleAlert aria-label="Documentación pendiente" className="document-shortcut__warning" size={16} /> : null}
@@ -602,11 +605,16 @@ export function VehicleDetail({
                   {item.status ? (
                     <span className={`document-status document-status--${item.statusTone}`}>{item.status}</span>
                   ) : null}
-                  <span className="document-shortcut__action">
+                  <button
+                    aria-label={documentActionAriaLabels[item.label as keyof typeof documentActionAriaLabels]}
+                    className="document-shortcut__action"
+                    onClick={item.onClick}
+                    type="button"
+                  >
                     {item.action}
                     <ArrowRight aria-hidden="true" size={15} />
-                  </span>
-                </button>
+                  </button>
+                </div>
               ))}
             </div>
             {hasPendingRequiredDocuments ? (
