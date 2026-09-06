@@ -1165,7 +1165,7 @@
   cursor: help;
   line-height: 1;
   outline: 0;
-  z-index: 2;
+  z-index: 10;
 }
 
 .vehicle-document-alert svg {
@@ -1179,21 +1179,21 @@
   position: absolute;
   bottom: calc(100% + 9px);
   left: 50%;
-  z-index: 3;
+  z-index: 11;
   width: max-content;
   min-width: 190px;
   max-width: min(290px, 68vw);
   display: grid;
-  gap: 5px;
+  gap: 6px;
   padding: 9px 11px;
   border: 0;
   border-radius: 7px;
   background: #17211d;
   color: #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
   font-size: 0.78rem;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
   opacity: 0;
   pointer-events: none;
   transform: translate(-50%, 4px);
