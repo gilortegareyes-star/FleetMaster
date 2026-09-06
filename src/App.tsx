@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CarFront, Home, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound, Wrench } from "lucide-react"
+import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, Home, LayoutGrid, List, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound, Wrench } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
+import { VehicleTable } from "./components/VehicleTable"
 import { VehicleDetail } from "./components/VehicleDetail"
 import { VehicleForm } from "./components/VehicleForm"
 import { getVehicleDocumentAlerts } from "./services/vehicleDocuments"
@@ -14,9 +15,12 @@ import { useOrganization } from "./contexts/OrganizationContext"
 import { MaintenanceProvidersPage } from "./components/MaintenanceProvidersPage"
 
 type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores"
+type FleetViewMode = "cards" | "table"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
 const navigationStorageKey = "fleetmaster.navigation.v1"
+const fleetViewStorageKey = "fleetmaster:fleet-view"
+const fleetPageSize = 12
 const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores"])
 
 interface StoredNavigation {
@@ -49,6 +53,11 @@ function App() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [documentAlertsByVehicle, setDocumentAlertsByVehicle] = useState<Map<string, import("./services/vehicleDocuments").DocumentAlert[]> | null>(null)
+  const [fleetView, setFleetView] = useState<FleetViewMode>(() => {
+    const stored = window.sessionStorage.getItem(fleetViewStorageKey)
+    return stored === "table" ? "table" : "cards"
+  })
+  const [currentPage, setCurrentPage] = useState(1)
 
   const storeNavigation = (
     view: ActiveView,
@@ -271,6 +280,38 @@ function App() {
   const selectedVehicle = useMemo(() => {
     return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null
   }, [vehicles, selectedVehicleId])
+
+  const totalPages = Math.max(1, Math.ceil(filteredVehicles.length / fleetPageSize))
+  const paginatedVehicles = useMemo(() => {
+    const startIndex = (currentPage - 1) * fleetPageSize
+    return filteredVehicles.slice(startIndex, startIndex + fleetPageSize)
+  }, [currentPage, filteredVehicles])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters.query, filters.status, filters.brand, filters.year])
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages))
+  }, [totalPages])
+
+  const pageItems = useMemo<(number | "ellipsis")[]>(() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1)
+    if (currentPage <= 4) return [1, 2, 3, 4, 5, "ellipsis", totalPages]
+    if (currentPage >= totalPages - 3) return [1, "ellipsis", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
+    return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages]
+  }, [currentPage, totalPages])
+
+  const selectFleetView = (view: FleetViewMode) => {
+    setFleetView(view)
+    window.sessionStorage.setItem(fleetViewStorageKey, view)
+  }
+
+  const openVehicle = (vehicle: Vehicle) => {
+    setSelectedVehicleId(vehicle.id)
+    setIsVehicleCenterOpen(true)
+    storeNavigation("unidades", activeOrganization?.id ?? null, vehicle.id, true)
+  }
 
   const fleetStats = useMemo(() => {
     return {
@@ -511,6 +552,30 @@ function App() {
                   </div>
                 </div>
 
+                <div className="fleet-results-toolbar">
+                  <span>{filteredVehicles.length} {filteredVehicles.length === 1 ? "unidad" : "unidades"}</span>
+                  <div aria-label="Vista de resultados" className="view-switcher" role="group">
+                    <button
+                      aria-pressed={fleetView === "cards"}
+                      className={fleetView === "cards" ? "view-switcher__button view-switcher__button--active" : "view-switcher__button"}
+                      onClick={() => selectFleetView("cards")}
+                      type="button"
+                    >
+                      <LayoutGrid aria-hidden="true" size={16} />
+                      Tarjetas
+                    </button>
+                    <button
+                      aria-pressed={fleetView === "table"}
+                      className={fleetView === "table" ? "view-switcher__button view-switcher__button--active" : "view-switcher__button"}
+                      onClick={() => selectFleetView("table")}
+                      type="button"
+                    >
+                      <List aria-hidden="true" size={16} />
+                      Tabla
+                    </button>
+                  </div>
+                </div>
+
                 {isLoading ? (
                   <div className="state-card">Cargando unidades...</div>
                 ) : loadError ? (
@@ -534,21 +599,42 @@ function App() {
                     <span>Ajusta la busqueda o los filtros para encontrar la unidad.</span>
                   </div>
                 ) : (
-                  <div className="vehicles-list">
-                    {filteredVehicles.map((vehicle) => (
-                      <VehicleCard
-                        documentAlerts={documentAlertsByVehicle?.get(vehicle.id) ?? []}
-                        isSelected={selectedVehicleId === vehicle.id}
-                        key={vehicle.id}
-                        onSelect={() => {
-                          setSelectedVehicleId(vehicle.id)
-                          setIsVehicleCenterOpen(true)
-                          storeNavigation("unidades", activeOrganization?.id ?? null, vehicle.id, true)
-                        }}
-                        vehicle={vehicle}
+                  <>
+                    {fleetView === "cards" ? (
+                      <div className="vehicles-list">
+                        {paginatedVehicles.map((vehicle) => (
+                          <VehicleCard
+                            documentAlerts={documentAlertsByVehicle?.get(vehicle.id) ?? []}
+                            isSelected={selectedVehicleId === vehicle.id}
+                            key={vehicle.id}
+                            onSelect={() => openVehicle(vehicle)}
+                            vehicle={vehicle}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <VehicleTable
+                        documentAlertsByVehicle={documentAlertsByVehicle ?? new Map()}
+                        isSelected={(vehicleId) => selectedVehicleId === vehicleId}
+                        onSelect={openVehicle}
+                        vehicles={paginatedVehicles}
                       />
-                    ))}
-                  </div>
+                    )}
+                    <div className="fleet-pagination" aria-label="Paginación de unidades">
+                      <span>
+                        Mostrando {(currentPage - 1) * fleetPageSize + 1}–{Math.min(currentPage * fleetPageSize, filteredVehicles.length)} de {filteredVehicles.length} unidades
+                      </span>
+                      <div className="fleet-pagination__controls">
+                        <button aria-label="Página anterior" className="icon-button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))} type="button">
+                          <ChevronLeft aria-hidden="true" size={17} />
+                        </button>
+                        {pageItems.map((item, index) => item === "ellipsis" ? <span className="fleet-pagination__ellipsis" key={`ellipsis-${index}`}>…</span> : <button aria-current={currentPage === item ? "page" : undefined} className={currentPage === item ? "fleet-pagination__page fleet-pagination__page--active" : "fleet-pagination__page"} key={item} onClick={() => setCurrentPage(item)} type="button">{item}</button>)}
+                        <button aria-label="Página siguiente" className="icon-button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} type="button">
+                          <ChevronRight aria-hidden="true" size={17} />
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
               </section>
             </div>

@@ -1,8 +1,9 @@
-import { ArrowRight, Gauge, TriangleAlert } from "lucide-react"
+import { ArrowRight, Gauge } from "lucide-react"
 import { StatusBadge } from "./StatusBadge"
 import type { DocumentAlert } from "../services/vehicleDocuments"
 import type { Vehicle } from "../types/vehicle"
 import { displayValue, formatMileage } from "../utils/formatters"
+import { VehicleDocumentAlert } from "./VehicleDocumentAlert"
 
 interface VehicleCardProps {
   documentAlerts: DocumentAlert[]
@@ -25,15 +26,7 @@ export function VehicleCard({ documentAlerts, vehicle, isSelected, onSelect }: V
       <div className="vehicle-card__header">
         <div className="vehicle-card__code-group">
           <strong className="vehicle-card__code">{vehicle.internalCode}</strong>
-          {documentAlerts.length > 0 ? (
-            <span
-              aria-label={`Documentación que requiere atención: ${documentAlerts.map((alert) => alert.label).join("; ")}`}
-              className="vehicle-card__document-warning"
-              title={`Documentación que requiere atención\n• ${documentAlerts.map((alert) => alert.label).join("\n• ")}`}
-            >
-              <TriangleAlert aria-hidden="true" fill="none" size={18} strokeWidth={2} />
-            </span>
-          ) : null}
+          <VehicleDocumentAlert alerts={documentAlerts} />
         </div>
         <StatusBadge status={vehicle.status} />
       </div>
