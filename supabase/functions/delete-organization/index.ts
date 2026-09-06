@@ -86,14 +86,14 @@ const parseOrganizationId = (body: unknown) => {
   return value.trim().toLowerCase()
 }
 
-const createCallerClient = (token: string) => {
+const createCallerClient = (authorization: string) => {
   const url = Deno.env.get("SUPABASE_URL")
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY")
   if (!url || !anonKey) throw new DeletionError("missing_server_config", 500)
 
   return createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
+    global: { headers: { Authorization: authorization } },
   })
 }
 
@@ -228,6 +228,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) })
   if (request.method !== "POST") return json({ ok: false, code: "invalid_request" }, 405, origin, correlationId)
 
+  const authorization = request.headers.get("authorization") ?? ""
   const token = bearerToken(request)
   if (!token) {
     log(correlationId, { stage: "authentication_failed", reason: "missing_bearer_token" })
@@ -246,9 +247,9 @@ Deno.serve(async (request) => {
   let callerId: string | null = null
   let caller: SupabaseClient
   try {
-    caller = createCallerClient(token)
+    caller = createCallerClient(authorization)
     log(correlationId, { stage: "auth_get_user_started" })
-    const { data: userData, error: userError } = await caller.auth.getUser(token)
+    const { data: userData, error: userError } = await caller.auth.getUser()
     if (userError || !userData.user) {
       log(correlationId, {
         stage: "authentication_failed",
