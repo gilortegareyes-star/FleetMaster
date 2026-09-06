@@ -263,6 +263,17 @@ function App() {
     return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null
   }, [vehicles, selectedVehicleId])
 
+  const vehiclesWithDocumentAlerts = useMemo(() => {
+    if (!documentAlertsByVehicle) {
+      return 0
+    }
+
+    return vehicles.reduce(
+      (count, vehicle) => count + (documentAlertsByVehicle.get(vehicle.id)?.length ? 1 : 0),
+      0,
+    )
+  }, [documentAlertsByVehicle, vehicles])
+
   const totalPages = Math.max(1, Math.ceil(filteredVehicles.length / fleetPageSize))
   const paginatedVehicles = useMemo(() => {
     const startIndex = (currentPage - 1) * fleetPageSize
@@ -480,6 +491,10 @@ function App() {
               <div className="fleet-metric">
                 <span>Fuera de servicio</span>
                 <strong>{fleetStats.offline}</strong>
+              </div>
+              <div className="fleet-metric">
+                <span>Documentos pendientes</span>
+                <strong>{vehiclesWithDocumentAlerts}</strong>
               </div>
             </section>
 
