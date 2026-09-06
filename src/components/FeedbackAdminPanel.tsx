@@ -12,7 +12,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import {
   addFeedbackTicketMessage,
@@ -72,6 +72,10 @@ const getInitials = (name: string | null, fallback: string) => {
     ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
     : source.slice(0, 2).toUpperCase();
 };
+type SupportTimelineItem =
+  | { kind: "message"; at: string; item: FeedbackTicketMessage }
+  | { kind: "close-request"; at: string; item: FeedbackTicketCloseRequest }
+  | { kind: "closed"; at: string };
 
 export function FeedbackAdminPanel({
   onRefreshUnread,
@@ -102,6 +106,19 @@ export function FeedbackAdminPanel({
   const [sendingReply, setSendingReply] = useState(false);
   const [filter, setFilter] = useState<"all" | FeedbackStatus>("all");
   const [search, setSearch] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const timeline = useMemo<SupportTimelineItem[]>(() => {
+    const items: SupportTimelineItem[] = messages.map((item) => ({ kind: "message", at: item.createdAt, item }));
+    if (pendingClose) items.push({ kind: "close-request", at: pendingClose.requestedAt, item: pendingClose });
+    if (selected?.status === "closed") items.push({ kind: "closed", at: selected.closedAt ?? selected.updatedAt });
+    return items.sort((left, right) => left.at.localeCompare(right.at));
+  }, [messages, pendingClose, selected]);
+  useEffect(() => {
+    if (!loadingMessages && stickToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [loadingMessages, timeline.length]);
   const refresh = async () => {
     setLoading(true);
     setError(null);
@@ -129,6 +146,7 @@ export function FeedbackAdminPanel({
   const openTicket = async (ticket: FeedbackTicket) => {
     if (selected?.id === ticket.id) return;
     setSelected(ticket);
+    stickToBottomRef.current = true;
     setMessages([]);
     setError(null);
     try {
@@ -158,7 +176,10 @@ export function FeedbackAdminPanel({
   }, [selected]);
   const refreshAfterCloseAction = async () => {
     if (!selected) return;
-    const nextTickets = await listOrganizationFeedbackTickets(organizationId);
+    const [nextTickets, nextRequests] = await Promise.all([
+      listOrganizationFeedbackTickets(organizationId),
+      listPendingFeedbackTicketCloseRequests(),
+    ]);
     const nextSelected =
       nextTickets.find((ticket) => ticket.id === selected.id) ?? null;
     setTickets(nextTickets);
@@ -168,6 +189,7 @@ export function FeedbackAdminPanel({
         ? await getPendingFeedbackTicketCloseRequest(nextSelected.id)
         : null,
     );
+    setPendingCloseByTicket(new Map(nextRequests.filter((request) => request.organizationId === organizationId).map((request) => [request.ticketId, request])));
   };
   const runCloseAction = async (
     action: "request" | "confirm" | "reject" | "cancel",
@@ -275,6 +297,22 @@ export function FeedbackAdminPanel({
             .then(onRefreshUnread)
             .catch(() => undefined);
         },
+      );
+    const refreshCloseState = () => {
+      void refreshAfterCloseAction().catch(() => {
+        if (active) setError("No se pudo actualizar el estado de cierre.");
+      });
+    };
+    channel
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "feedback_ticket_close_requests", filter: `ticket_id=eq.${selected.id}` },
+        refreshCloseState,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "feedback_ticket_close_requests", filter: `ticket_id=eq.${selected.id}` },
+        refreshCloseState,
       );
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED")
@@ -482,64 +520,49 @@ export function FeedbackAdminPanel({
                   <X aria-hidden="true" size={18} />
                 </button>
               </header>
-              <div className="support-messages">
+              <div className="support-messages" onScroll={(event) => { const node = event.currentTarget; stickToBottomRef.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80; }}>
                 {loadingMessages ? (
                   <p className="support-empty">Cargando conversación...</p>
-                ) : messages.length === 0 && !pendingClose && selected.status !== "closed" ? (
+                ) : timeline.length === 0 ? (
                   <p className="support-empty">
                     Aún no hay mensajes en esta conversación.
                   </p>
                 ) : (
-                  <>
-                    {selected.status === "closed" ? (
-                      <section className="support-close-event support-close-event--historical" aria-label="Evento de cierre">
-                        <strong>✓ Ticket cerrado</strong>
-                        <span>Cierre confirmado por ambas partes{selected.closedAt ? ` · ${formatDate(selected.closedAt)}` : ""}</span>
-                      </section>
-                    ) : pendingClose ? (
-                      <section className="support-close-event" aria-label="Solicitud de cierre">
-                        <strong>El cliente solicita finalizar este ticket</strong>
-                        <span>{pendingClose.requestedSide === "organization" ? "La persona que abrió el caso considera completada la solicitud." : "Esperando confirmación de la persona que creó el ticket."}</span>
-                        {pendingClose.requestedSide === "organization" ? (
-                          <div>
-                            <button className="button button--primary" disabled={loadingClose} onClick={() => setCloseConfirmation("confirm")} type="button">Confirmar y cerrar ticket</button>
-                            <button className="button button--secondary" disabled={loadingClose} onClick={() => void runCloseAction("reject")} type="button">Continuar trabajando</button>
-                          </div>
-                        ) : null}
-                      </section>
-                    ) : null}
-                    {messages.map((item) => (
-                      <article
-                        className={`support-message ${item.authorId === user?.id ? "support-message--outgoing" : ""}`}
-                        key={item.id}
-                      >
-                        <div
-                          className={`support-message__avatar ${item.authorId === user?.id ? "support-message__avatar--own" : "support-message__avatar--team"}`}
-                          aria-hidden="true"
-                        >
-                          {getInitials(
-                            item.authorName,
-                            item.authorId === user?.id ? "FM" : "Usuario",
-                          )}
+                  timeline.map((entry) => entry.kind === "message" ? (
+                    <article
+                      className={`support-message ${entry.item.authorId === user?.id ? "support-message--outgoing" : ""}`}
+                      key={entry.item.id}
+                    >
+                      <div className={`support-message__avatar ${entry.item.authorId === user?.id ? "support-message__avatar--own" : "support-message__avatar--team"}`} aria-hidden="true">
+                        {getInitials(entry.item.authorName, entry.item.authorId === user?.id ? "FM" : "Usuario")}
+                      </div>
+                      <div className="support-message__body">
+                        <header>
+                          <strong>{entry.item.authorId === user?.id ? "Equipo FleetMaster" : entry.item.authorName || "Usuario de la empresa"}</strong>
+                          <time><Clock3 aria-hidden="true" size={13} /> {formatDate(entry.item.createdAt)}</time>
+                        </header>
+                        <p>{entry.item.message}</p>
+                      </div>
+                    </article>
+                  ) : entry.kind === "close-request" ? (
+                    <section className="support-close-event" aria-label="Solicitud de cierre" key={`close-request-${entry.item.id}`}>
+                      <strong>El cliente solicita finalizar este ticket</strong>
+                      <span>{entry.item.requestedSide === "organization" ? "La persona que abrió el caso considera completada la solicitud." : "Esperando confirmación de la persona que creó el ticket."}</span>
+                      {entry.item.requestedSide === "organization" ? (
+                        <div>
+                          <button className="button button--primary" disabled={loadingClose} onClick={() => setCloseConfirmation("confirm")} type="button">Confirmar y cerrar ticket</button>
+                          <button className="button button--secondary" disabled={loadingClose} onClick={() => void runCloseAction("reject")} type="button">Continuar trabajando</button>
                         </div>
-                        <div className="support-message__body">
-                          <header>
-                            <strong>
-                              {item.authorId === user?.id
-                                ? "Equipo FleetMaster"
-                                : item.authorName || "Usuario de la empresa"}
-                            </strong>
-                            <time>
-                              <Clock3 aria-hidden="true" size={13} />{" "}
-                              {formatDate(item.createdAt)}
-                            </time>
-                          </header>
-                          <p>{item.message}</p>
-                        </div>
-                      </article>
-                    ))}
-                  </>
+                      ) : null}
+                    </section>
+                  ) : (
+                    <section className="support-close-event support-close-event--historical" aria-label="Evento de cierre" key="closed-event">
+                      <strong>✓ Ticket cerrado</strong>
+                      <span>Cierre confirmado por ambas partes{selected.closedAt ? ` · ${formatDate(selected.closedAt)}` : ""}</span>
+                    </section>
+                  ))
                 )}
+                <div ref={messagesEndRef} aria-hidden="true" />
               </div>
               {selected.status === "closed" ? (
                 <p className="support-closed">
