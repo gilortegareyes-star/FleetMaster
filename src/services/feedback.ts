@@ -1,5 +1,5 @@
 import { getSupabaseClient } from "./supabase"
-import type { FeedbackAdminUnreadOrganization, FeedbackCategory, FeedbackPriority, FeedbackStatus, FeedbackTicket, FeedbackTicketMessage, FeedbackUnreadTicket } from "../types/feedback"
+import type { FeedbackAdminUnreadOrganization, FeedbackCategory, FeedbackCloseRequestStatus, FeedbackCloseSide, FeedbackPriority, FeedbackStatus, FeedbackTicket, FeedbackTicketCloseRequest, FeedbackTicketMessage, FeedbackUnreadTicket } from "../types/feedback"
 
 interface FeedbackTicketRow {
   id: string
@@ -28,6 +28,7 @@ interface FeedbackMessageRow {
 interface ProfileRow { id: string; display_name: string | null }
 interface FeedbackUnreadTicketRow { ticket_id: string; organization_id: string; unread_count: number; last_activity_at: string }
 interface FeedbackAdminUnreadOrganizationRow { organization_id: string; organization_name: string; unread_count: number; last_activity_at: string }
+interface FeedbackTicketCloseRequestRow { id: string; ticket_id: string; organization_id: string; requested_side: FeedbackCloseSide; requested_by: string; requested_at: string; status: FeedbackCloseRequestStatus; responded_by: string | null; responded_at: string | null; created_at: string; updated_at: string }
 
 const feedbackError = (error: { code?: string; message?: string; details?: string; hint?: string }) => {
   const message = error.message?.toLowerCase() ?? ""
@@ -111,6 +112,55 @@ export const addFeedbackTicketMessage = async (ticketId: string, message: string
   const { data, error } = await getSupabaseClient().rpc("add_feedback_ticket_message", { p_ticket_id: ticketId, p_message: message })
   if (error) throw feedbackError(error)
   return data as FeedbackMessageRow
+}
+
+const toCloseRequest = (row: FeedbackTicketCloseRequestRow): FeedbackTicketCloseRequest => ({
+  id: row.id,
+  ticketId: row.ticket_id,
+  organizationId: row.organization_id,
+  requestedSide: row.requested_side,
+  requestedBy: row.requested_by,
+  requestedAt: row.requested_at,
+  status: row.status,
+  respondedBy: row.responded_by,
+  respondedAt: row.responded_at,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+})
+
+export const getPendingFeedbackTicketCloseRequest = async (ticketId: string) => {
+  const { data, error } = await getSupabaseClient()
+    .from("feedback_ticket_close_requests")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .eq("status", "pending")
+    .maybeSingle()
+  if (error) throw feedbackError(error)
+  return data ? toCloseRequest(data as FeedbackTicketCloseRequestRow) : null
+}
+
+export const listPendingFeedbackTicketCloseRequests = async () => {
+  const { data, error } = await getSupabaseClient().from("feedback_ticket_close_requests").select("*").eq("status", "pending")
+  if (error) throw feedbackError(error)
+  return ((data ?? []) as FeedbackTicketCloseRequestRow[]).map(toCloseRequest)
+}
+
+export const requestFeedbackTicketClose = async (ticketId: string) => {
+  const { data, error } = await getSupabaseClient().rpc("request_feedback_ticket_close", { p_ticket_id: ticketId })
+  if (error) throw feedbackError(error)
+  return toCloseRequest(data as FeedbackTicketCloseRequestRow)
+}
+
+export const respondFeedbackTicketClose = async (ticketId: string, decision: "confirm" | "reject") => {
+  const { data, error } = await getSupabaseClient().rpc("respond_feedback_ticket_close", { p_ticket_id: ticketId, p_decision: decision })
+  if (error) throw feedbackError(error)
+  return toCloseRequest(data as FeedbackTicketCloseRequestRow)
+}
+
+export const cancelFeedbackTicketClose = async (ticketId: string) => {
+  const { data, error } = await getSupabaseClient().rpc("cancel_feedback_ticket_close", { p_ticket_id: ticketId })
+  if (error) throw feedbackError(error)
+  return toCloseRequest(data as FeedbackTicketCloseRequestRow)
 }
 
 const toUnreadTicket = (row: FeedbackUnreadTicketRow): FeedbackUnreadTicket => ({

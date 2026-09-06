@@ -7,6 +7,23 @@ export type FeedbackStatus = (typeof feedbackStatuses)[number]
 export const feedbackPriorities = ["low", "normal", "high", "urgent"] as const
 export type FeedbackPriority = (typeof feedbackPriorities)[number]
 
+export type FeedbackCloseSide = "fleetmaster" | "organization"
+export type FeedbackCloseRequestStatus = "pending" | "confirmed" | "rejected" | "cancelled"
+
+export interface FeedbackTicketCloseRequest {
+  id: string
+  ticketId: string
+  organizationId: string
+  requestedSide: FeedbackCloseSide
+  requestedBy: string
+  requestedAt: string
+  status: FeedbackCloseRequestStatus
+  respondedBy: string | null
+  respondedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface FeedbackTicket {
   id: string
   organizationId: string

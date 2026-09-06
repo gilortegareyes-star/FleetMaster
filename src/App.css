@@ -5974,7 +5974,7 @@
 .company-hero {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 28px;
   overflow: hidden;
@@ -6061,8 +6061,26 @@
   gap: 9px;
 }
 
-.company-hero__actions .organization-status {
-  margin-right: 5px;
+.company-hero__manage-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding-inline: 15px;
+  box-shadow: 0 8px 18px rgba(23, 33, 29, 0.1);
+}
+
+.company-hero__manage-button svg:last-child {
+  margin-left: 2px;
+}
+
+.company-hero__edit-button {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  padding: 0;
 }
 
 .company-tabs {
@@ -6363,6 +6381,150 @@
     width: 100%;
   }
 }
+
+/* Support workspace: keep compact panels and scroll only where content requires it. */
+.support-center {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.support-center__header,
+.support-center__toolbar {
+  flex: 0 0 auto;
+}
+
+.support-workspace {
+  min-height: 0;
+}
+
+.support-list-panel,
+.support-conversation {
+  min-height: 0;
+}
+
+.support-list-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.support-ticket-list {
+  min-height: 0;
+  max-height: none;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+.support-details-panel {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.support-messages {
+  min-height: 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.support-date-separator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #8a9791;
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.support-date-separator::before,
+.support-date-separator::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #e5ece9;
+}
+
+.support-message {
+  max-width: 86%;
+}
+
+.support-message--outgoing {
+  align-self: end;
+  flex-direction: row-reverse;
+}
+
+.support-message--outgoing .support-message__body {
+  background: #eaf6f1;
+  border-color: #d2e9df;
+}
+
+.support-message__body {
+  max-width: min(680px, 100%);
+}
+
+.support-message__avatar--team {
+  background: #e8edf4;
+  color: #40546d;
+}
+
+.support-message__avatar--own {
+  background: #d9eee6;
+  color: #0f6d62;
+}
+
+.support-conversation__header > .icon-button {
+  display: none;
+}
+
+.support-conversation__header .support-eyebrow {
+  display: none;
+}
+
+.support-conversation__meta .feedback-status,
+.support-conversation__meta span:not(:last-child) {
+  display: none;
+}
+
+.support-message--outgoing .support-message__avatar {
+  order: 2;
+}
+
+.support-message--outgoing .support-message__body {
+  order: 1;
+}
+
+.support-conversation__back {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 6px 0;
+  background: transparent;
+  color: #0f766e;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+@media (max-width: 760px) {
+  .support-center {
+    height: auto;
+  }
+
+  .support-message {
+    max-width: 92%;
+  }
+
+  .support-conversation__header > .icon-button {
+    display: inline-grid;
+  }
+
+  .support-conversation__back {
+    display: inline-flex;
+  }
+}
 .maintenance-entry-section {
   border: 1px solid var(--border-color, #dfe5ec);
   border-radius: 12px;
@@ -6644,7 +6806,6 @@
   gap: 13px;
 }
 
-.support-center__icon,
 .support-details-panel__icon {
   display: grid;
   flex: 0 0 auto;
@@ -6652,11 +6813,6 @@
   border-radius: 10px;
   background: #e1f2ec;
   color: #0f766e;
-}
-
-.support-center__icon {
-  width: 45px;
-  height: 45px;
 }
 
 .support-center__heading p,
@@ -7286,6 +7442,51 @@
 .feedback-success, .feedback-error { margin: 16px 0 0; font-size: 13px; }
 .feedback-success { color: #176d4d; }
 .feedback-error { color: #a33d3d; }
+
+.support-close-event {
+  display: grid;
+  gap: 8px;
+  width: min(100% - 32px, 620px);
+  margin: 14px auto;
+  padding: 13px 14px;
+  border: 1px solid #d5e3df;
+  border-radius: 8px;
+  background: #f7fbfa;
+  text-align: center;
+}
+.support-close-event strong { color: #123d3b; }
+.support-close-event span { color: #637775; font-size: 13px; line-height: 1.45; }
+.support-close-event > div { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.support-close-event .button--secondary { border-color: #c7d9d4; background: transparent; color: #234d49; }
+.support-close-event--historical { background: #f4f6f5; border-color: #dfe7e3; }
+
+.support-ticket__actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-left: auto; }
+.support-ticket__action-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: #52736d; cursor: pointer; }
+.support-ticket__action-icon:hover { background: #eaf4f1; color: #126b64; }
+.support-ticket__action-icon:focus-visible { outline: 2px solid rgba(15, 118, 110, .3); outline-offset: 1px; }
+
+.support-confirmation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(14, 27, 25, .36);
+}
+
+.support-confirmation {
+  width: min(100%, 440px);
+  padding: 24px;
+  border: 1px solid #d8e5e1;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 18px 48px rgba(15, 36, 32, .18);
+}
+
+.support-confirmation h2 { margin: 0; color: #123d3b; font-size: 20px; }
+.support-confirmation p { margin: 12px 0 20px; color: #637775; line-height: 1.5; }
+.support-confirmation footer { display: flex; justify-content: flex-end; gap: 8px; }
 .feedback-admin-panel__header > p { margin: 0 0 5px; color: #75817b; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .feedback-admin-panel__header strong { color: #53615c; font-size: 13px; white-space: nowrap; }
 .support-ticket-modal-overlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; padding: 24px; overflow-y: auto; background: rgba(18, 27, 24, 0.34); backdrop-filter: blur(10px); }
@@ -7396,5 +7597,230 @@
 
   .operational-access-panel .button {
     width: 100%;
+  }
+}
+
+/* Final support workspace height model: natural height until chat is active. */
+.support-center {
+  margin-top: 18px;
+}
+
+.support-center__header {
+  padding-bottom: 15px;
+}
+
+.support-center__toolbar {
+  padding: 8px 0;
+}
+
+.support-workspace {
+  flex: 0 0 auto;
+  align-items: start;
+}
+
+.support-list-panel {
+  height: auto;
+  min-height: 0;
+}
+
+.support-conversation {
+  height: auto;
+  min-height: 0;
+}
+
+.support-ticket-list {
+  flex: 0 0 auto;
+  max-height: none;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+.support-conversation:has(.support-messages) {
+  max-height: 620px;
+}
+
+.support-conversation:has(.support-no-selection) .support-no-selection {
+  padding-block: 64px;
+}
+
+.support-details-panel {
+  align-self: start;
+}
+
+.support-messages {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1080px) {
+  .support-conversation:has(.support-messages) {
+    max-height: 620px;
+  }
+}
+
+@media (max-width: 760px) {
+  .support-center {
+    height: auto;
+    min-height: 0;
+  }
+
+  .support-ticket-list {
+    max-height: 340px;
+  }
+
+  .support-conversation:has(.support-messages) {
+    min-height: 520px;
+  }
+}
+
+/* Fleet-5G: the support area is one workspace, not a stack of cards. */
+.support-center--admin .support-center__header {
+  display: none;
+}
+
+.support-list-panel > header .support-eyebrow {
+  display: none;
+}
+
+.support-workspace {
+  align-items: start;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--support-border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.support-workspace > .support-list-panel,
+.support-workspace > .support-conversation,
+.support-workspace > .support-details-panel {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.support-workspace > .support-list-panel,
+.support-workspace > .support-conversation {
+  border-right: 1px solid var(--support-border);
+}
+
+.support-list-panel > header {
+  padding: 14px 16px 10px;
+  border-bottom: 0;
+}
+
+.support-list-panel > header h3 {
+  margin-top: 0;
+  font-size: 0.96rem;
+}
+
+.support-list-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.support-search {
+  width: auto;
+  margin: 0 16px 10px;
+  flex: 0 0 auto;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+.support-ticket-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid #e8efec;
+}
+
+.support-ticket {
+  gap: 5px;
+  padding: 11px 13px 12px 12px;
+}
+
+.support-ticket > b {
+  font-size: 0.82rem;
+}
+
+.support-ticket__meta small,
+.support-ticket__creator {
+  font-size: 0.69rem;
+}
+
+.support-conversation:has(.support-messages) {
+  height: min(620px, calc(100dvh - 260px));
+}
+
+.support-conversation:has(.support-no-selection) .support-no-selection {
+  min-height: 0;
+  padding-block: 32px;
+}
+
+.support-conversation__header {
+  padding: 14px 16px;
+}
+
+.support-conversation__header h3 {
+  margin: 4px 0 0;
+  font-size: 1.12rem;
+}
+
+.support-conversation__meta {
+  display: none;
+}
+
+.support-details-panel > header {
+  padding: 14px 16px;
+}
+
+.support-details-panel dl {
+  gap: 13px;
+  padding: 15px 16px 18px;
+}
+
+.support-details-panel__empty {
+  padding: 14px 16px 18px;
+  font-size: 0.74rem;
+}
+
+.support-no-selection {
+  padding: 42px 24px;
+}
+
+@media (min-width: 761px) {
+  .support-workspace:has(.support-messages) > .support-list-panel {
+    height: min(620px, calc(100dvh - 260px));
+  }
+}
+
+@media (max-width: 1080px) {
+  .support-workspace > .support-list-panel,
+  .support-workspace > .support-conversation {
+    border-right: 0;
+  }
+
+  .support-workspace > .support-list-panel {
+    border-bottom: 1px solid var(--support-border);
+  }
+
+  .support-workspace > .support-conversation {
+    border-bottom: 1px solid var(--support-border);
+  }
+}
+
+@media (max-width: 760px) {
+  .support-workspace {
+    overflow: visible;
+  }
+
+  .support-workspace > .support-list-panel,
+  .support-workspace > .support-conversation {
+    border-right: 0;
+  }
+
+  .support-conversation:has(.support-messages) {
+    height: min(620px, calc(100dvh - 180px));
   }
 }

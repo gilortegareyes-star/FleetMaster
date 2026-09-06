@@ -34,7 +34,7 @@ interface StoredNavigation {
 }
 
 function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnreadTickets }: { onRefreshSupportUnread: () => Promise<void>; supportUnreadOrganizations: FeedbackAdminUnreadOrganization[]; supportUnreadTickets: FeedbackUnreadTicket[] }) {
-  const { isFleetmasterAdmin, signOut, user } = useAuth()
+  const { isFleetmasterAdmin, organizationAccess, signOut, user } = useAuth()
   const { activeOrganization, clearActiveOrganization } = useOrganization()
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -446,7 +446,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
         ) : activeView === "soporte" ? (
-          <FeedbackPanel onRefreshUnread={onRefreshSupportUnread} unreadTickets={supportUnreadTickets} />
+          <FeedbackPanel canManageClosure={isFleetmasterAdmin || organizationAccess?.role === "manager"} onRefreshUnread={onRefreshSupportUnread} unreadTickets={supportUnreadTickets} />
         ) : (
           <section className={isVehicleCenterOpen && selectedVehicle ? "unit-center-page" : "units-page"}>
             {isVehicleCenterOpen && selectedVehicle ? (
