@@ -229,7 +229,11 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ ok: false, code: "invalid_request" }, 405, origin, correlationId)
 
   const token = bearerToken(request)
-  if (!token) return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
+  if (!token) {
+    log(correlationId, { stage: "authentication_failed", reason: "missing_bearer_token" })
+    return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
+  }
+  log(correlationId, { stage: "bearer_token_received" })
 
   let organizationId: string
   try {
@@ -243,8 +247,18 @@ Deno.serve(async (request) => {
   let caller: SupabaseClient
   try {
     caller = createCallerClient(token)
+    log(correlationId, { stage: "auth_get_user_started" })
     const { data: userData, error: userError } = await caller.auth.getUser(token)
-    if (userError || !userData.user) return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
+    if (userError || !userData.user) {
+      log(correlationId, {
+        stage: "authentication_failed",
+        reason: "auth_get_user_rejected",
+        auth_error_code: userError?.code ?? null,
+        auth_error_status: userError?.status ?? null,
+        auth_error_message: userError?.message ?? (userData.user ? null : "user_not_returned"),
+      })
+      return json({ ok: false, code: "unauthorized" }, 401, origin, correlationId)
+    }
     callerId = userData.user.id
     log(correlationId, { stage: "authenticated", actor_id: callerId, organization_id: organizationId })
 
