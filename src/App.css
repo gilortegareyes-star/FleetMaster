@@ -6358,6 +6358,80 @@
   background: #199b75;
 }
 
+.company-status-action {
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+}
+
+.organization-lifecycle-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(13, 25, 21, 0.48);
+  backdrop-filter: blur(4px);
+}
+
+.organization-lifecycle-modal {
+  width: min(540px, 100%);
+  max-height: min(720px, calc(100dvh - 48px));
+  overflow: auto;
+  border: 1px solid #e3e9e6;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgba(31, 45, 39, 0.2);
+}
+
+.organization-lifecycle-modal > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 26px 28px 20px;
+  border-bottom: 1px solid #e3e9e6;
+}
+
+.organization-lifecycle-modal > header p {
+  margin: 0 0 6px;
+  color: #0f766e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.organization-lifecycle-modal h2 {
+  margin: 0;
+  color: #17211d;
+  font-size: 1.4rem;
+}
+
+.organization-lifecycle-modal__body {
+  display: grid;
+  gap: 12px;
+  padding: 24px 28px;
+  color: #4e625b;
+  line-height: 1.5;
+}
+
+.organization-lifecycle-modal__body p {
+  margin: 0;
+}
+
+.organization-lifecycle-modal > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 28px 26px;
+}
+
 .company-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
