@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, Home, LayoutGrid, List, LogOut, Plus, Search, Settings2, SlidersHorizontal, UserRound, Wrench } from "lucide-react"
+import { ArrowLeft, CarFront, ChevronLeft, ChevronRight, Home, LayoutGrid, List, LogOut, Plus, Search, Settings2, UserRound, Wrench } from "lucide-react"
 import "./App.css"
 import { VehicleCard } from "./components/VehicleCard"
 import { VehicleTable } from "./components/VehicleTable"
@@ -8,7 +8,7 @@ import { VehicleForm } from "./components/VehicleForm"
 import { getVehicleDocumentAlerts } from "./services/vehicleDocuments"
 import { createVehicle, listVehicles, updateVehicle } from "./services/vehicles"
 import { isSupabaseConfigured } from "./services/supabase"
-import { vehicleStatuses, type Vehicle, type VehicleFilters, type VehiclePayload } from "./types/vehicle"
+import type { Vehicle, VehiclePayload } from "./types/vehicle"
 import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 import { useOrganization } from "./contexts/OrganizationContext"
@@ -31,13 +31,6 @@ interface StoredNavigation {
   isVehicleCenterOpen?: boolean
 }
 
-const initialFilters: VehicleFilters = {
-  query: "",
-  status: "Todos",
-  brand: "Todas",
-  year: "Todos",
-}
-
 function App() {
   const { signOut, user } = useAuth()
   const { activeOrganization, clearActiveOrganization } = useOrganization()
@@ -45,7 +38,7 @@ function App() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null)
   const [isVehicleCenterOpen, setIsVehicleCenterOpen] = useState(false)
-  const [filters, setFilters] = useState<VehicleFilters>(initialFilters)
+  const [searchQuery, setSearchQuery] = useState("")
   const [formState, setFormState] = useState<FormState>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -195,7 +188,7 @@ function App() {
     setVehicles([])
     setSelectedVehicleId(null)
     setIsVehicleCenterOpen(false)
-    setFilters(initialFilters)
+    setSearchQuery("")
     setFormState(null)
     setLoadError(null)
     setSaveError(null)
@@ -246,15 +239,8 @@ function App() {
     return () => window.clearTimeout(timeoutId)
   }, [feedback])
 
-  const filterOptions = useMemo(() => {
-    const brands = Array.from(new Set(vehicles.map((vehicle) => vehicle.brand))).sort((a, b) => a.localeCompare(b))
-    const years = Array.from(new Set(vehicles.map((vehicle) => String(vehicle.year)))).sort((a, b) => Number(b) - Number(a))
-
-    return { brands, years }
-  }, [vehicles])
-
   const filteredVehicles = useMemo(() => {
-    const query = filters.query.trim().toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
 
     return vehicles.filter((vehicle) => {
       const matchesQuery =
@@ -269,13 +255,9 @@ function App() {
           ...vehicle.fuelTypes,
           vehicle.vin,
         ].some((value) => value.toLowerCase().includes(query))
-      const matchesStatus = filters.status === "Todos" || vehicle.status === filters.status
-      const matchesBrand = filters.brand === "Todas" || vehicle.brand === filters.brand
-      const matchesYear = filters.year === "Todos" || String(vehicle.year) === filters.year
-
-      return matchesQuery && matchesStatus && matchesBrand && matchesYear
+      return matchesQuery
     })
-  }, [filters, vehicles])
+  }, [searchQuery, vehicles])
 
   const selectedVehicle = useMemo(() => {
     return vehicles.find((vehicle) => vehicle.id === selectedVehicleId) ?? null
@@ -289,7 +271,7 @@ function App() {
 
   useEffect(() => {
     setCurrentPage(1)
-  }, [filters.query, filters.status, filters.brand, filters.year])
+  }, [searchQuery])
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages))
@@ -507,49 +489,11 @@ function App() {
                   <label className="search-box">
                     <Search aria-hidden="true" size={18} />
                     <input
-                      onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+                      onChange={(event) => setSearchQuery(event.target.value)}
                       placeholder="Buscar por codigo, marca, modelo, placas o VIN"
-                      value={filters.query}
+                      value={searchQuery}
                     />
                   </label>
-                  <div className="filters-row" aria-label="Filtros de unidades">
-                    <SlidersHorizontal aria-hidden="true" size={18} />
-                    <select
-                      onChange={(event) =>
-                        setFilters((current) => ({ ...current, status: event.target.value as VehicleFilters["status"] }))
-                      }
-                      value={filters.status}
-                    >
-                      <option value="Todos">Todos los estatus</option>
-                      {vehicleStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      onChange={(event) => setFilters((current) => ({ ...current, brand: event.target.value }))}
-                      value={filters.brand}
-                    >
-                      <option value="Todas">Todas las marcas</option>
-                      {filterOptions.brands.map((brand) => (
-                        <option key={brand} value={brand}>
-                          {brand}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      onChange={(event) => setFilters((current) => ({ ...current, year: event.target.value }))}
-                      value={filters.year}
-                    >
-                      <option value="Todos">Todos los años</option>
-                      {filterOptions.years.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
                 <div className="fleet-results-toolbar">
