@@ -192,7 +192,7 @@ const cleanTenantStorage = async (admin: SupabaseClient, organizationId: string,
   log(correlationId, { stage: "storage_verified_empty", organization_id: organizationId })
 }
 
-const callDeletionRpc = async (admin: SupabaseClient, organizationId: string, deletedBy: string) => {
+const callDeletionRpc = async (admin: SupabaseClient, organizationId: string, deletedBy: string, correlationId: string) => {
   const { data, error } = await admin.rpc("delete_organization_permanently", {
     p_organization_id: organizationId,
     p_deleted_by: deletedBy,
@@ -200,6 +200,15 @@ const callDeletionRpc = async (admin: SupabaseClient, organizationId: string, de
   })
 
   if (error) {
+    log(correlationId, {
+      stage: "database_deletion",
+      organization_id: organizationId,
+      actor_id: deletedBy,
+      error_code: error.code ?? null,
+      error_message: error.message ?? null,
+      error_details: error.details ?? null,
+      error_hint: error.hint ?? null,
+    })
     if (error.message.includes("already been deleted")) throw new DeletionError("organization_already_deleted", 409)
     if (error.message.includes("not found")) throw new DeletionError("organization_not_found", 404)
     throw new DeletionError("database_deletion_failed", 500)
@@ -261,7 +270,7 @@ Deno.serve(async (request) => {
     log(correlationId, { stage: "organization_status_checked", actor_id: callerId, organization_id: organization.id })
     await cleanTenantStorage(admin, organizationId, correlationId)
     log(correlationId, { stage: "rpc_started", actor_id: callerId, organization_id: organizationId })
-    const result = await callDeletionRpc(admin, organizationId, callerId!)
+    const result = await callDeletionRpc(admin, organizationId, callerId!, correlationId)
     log(correlationId, { stage: "rpc_completed", actor_id: callerId, organization_id: organizationId })
     return json({
       ok: true,
