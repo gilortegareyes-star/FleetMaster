@@ -382,6 +382,16 @@
   font-weight: 760;
 }
 
+.users-section__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.users-add-button {
+  white-space: nowrap;
+}
+
 .users-notice {
   display: flex;
   align-items: center;
@@ -482,6 +492,20 @@
   color: #9c3d3d;
 }
 
+.user-record__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.user-record__copy {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
 .users-empty {
   display: grid;
   justify-items: center;
@@ -489,6 +513,16 @@
   padding: 22px 12px 10px;
   color: #788681;
   text-align: center;
+}
+
+.users-empty--invite {
+  gap: 9px;
+  min-height: 190px;
+  padding: 34px 18px;
+}
+
+.users-empty--invite span {
+  max-width: 340px;
 }
 
 .users-empty svg { color: #0f766e; }
@@ -5729,6 +5763,11 @@
   .user-record__action {
     grid-column: 3;
     grid-row: 1 / span 3;
+  }
+
+  .user-record__actions {
+    grid-column: 2 / span 2;
+    justify-content: flex-start;
   }
 }
 
