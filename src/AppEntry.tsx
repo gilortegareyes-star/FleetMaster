@@ -2,9 +2,11 @@ import { LogIn } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { Login } from "./components/Login"
 import { InvitationOnboarding } from "./components/InvitationOnboarding"
+import { WelcomeModal } from "./components/WelcomeModal"
 import { OrganizationAccountPage } from "./components/OrganizationAccountPage"
 import { getMyInvitation } from "./services/organizations"
 import { getSupabaseClient } from "./services/supabase"
+import { getMyWelcomeSeenAt } from "./services/profile"
 import { listFeedbackAdminUnreadSummary, listFeedbackUnreadTickets } from "./services/feedback"
 import type { FeedbackAdminUnreadOrganization, FeedbackUnreadTicket } from "./types/feedback"
 import type { InvitationContext } from "./types/organization"
@@ -28,6 +30,8 @@ export default function AppEntry() {
   const [invitationId, setInvitationId] = useState(() => new URLSearchParams(window.location.search).get("invitation") ?? getStoredInviteContext()?.invitationId ?? null)
   const [invitation, setInvitation] = useState<InvitationContext | null>(null)
   const [invitationLoading, setInvitationLoading] = useState(false)
+  const [welcomeLoading, setWelcomeLoading] = useState(false)
+  const [welcomeSeenAt, setWelcomeSeenAt] = useState<string | null | undefined>(undefined)
   const [supportUnreadTickets, setSupportUnreadTickets] = useState<FeedbackUnreadTicket[]>([])
   const [supportUnreadOrganizations, setSupportUnreadOrganizations] = useState<FeedbackAdminUnreadOrganization[]>([])
   const supportUnreadGenerationRef = useRef(0)
@@ -69,6 +73,31 @@ export default function AppEntry() {
     setInvitationLoading(true)
     void getMyInvitation(invitationId).then(setInvitation).catch(() => setInvitation(null)).finally(() => setInvitationLoading(false))
   }, [invitationId, isFleetmasterAdmin, session])
+
+  useEffect(() => {
+    if (!session) {
+      setWelcomeSeenAt(undefined)
+      setWelcomeLoading(false)
+      return
+    }
+
+    let active = true
+    setWelcomeLoading(true)
+    void getMyWelcomeSeenAt()
+      .then((value) => {
+        if (active) setWelcomeSeenAt(value)
+      })
+      .catch(() => {
+        if (active) setWelcomeSeenAt("")
+      })
+      .finally(() => {
+        if (active) setWelcomeLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [session?.user.id])
 
   useEffect(() => {
     let active = true
@@ -136,12 +165,15 @@ export default function AppEntry() {
     void refreshOrganizationAccess()
   }
 
-  if (loading || (session && (authorizationLoading || organizationAccessLoading || invitationLoading))) return <AuthLoading />
+  if (loading || (session && (authorizationLoading || organizationAccessLoading || invitationLoading || welcomeLoading))) return <AuthLoading />
   if (!session) return <Login hasInvitation={Boolean(invitationId)} />
   const supportProps = { onRefreshSupportUnread: refreshSupportUnread, supportUnreadOrganizations, supportUnreadTickets }
-  if (isFleetmasterAdmin) return <App {...supportProps} />
-  if (invitation) return <InvitationOnboarding invitation={invitation} isNewUser={isInviteSession} onAccepted={clearInvitation} />
-  if (organizationAccess?.operationalAccessEnabled === true) return <App {...supportProps} />
-  if (organizationAccess) return <OrganizationAccountPage access={organizationAccess} unreadTickets={supportUnreadTickets} onRefreshUnread={refreshSupportUnread} />
-  return <AccessDenied />
+  let content
+  if (isFleetmasterAdmin) content = <App {...supportProps} />
+  else if (invitation) content = <InvitationOnboarding invitation={invitation} isNewUser={isInviteSession} onAccepted={clearInvitation} />
+  else if (organizationAccess?.operationalAccessEnabled === true) content = <App {...supportProps} />
+  else if (organizationAccess) content = <OrganizationAccountPage access={organizationAccess} unreadTickets={supportUnreadTickets} onRefreshUnread={refreshSupportUnread} />
+  else content = <AccessDenied />
+
+  return <>{content}{welcomeSeenAt === null && !invitation ? <WelcomeModal onComplete={() => setWelcomeSeenAt(new Date().toISOString())} /> : null}</>
 }
