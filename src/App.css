@@ -330,6 +330,42 @@
   gap: 18px;
 }
 
+.manager-users-page {
+  display: grid;
+  gap: 22px;
+}
+
+.manager-users-page__summary {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.manager-users-page__summary strong {
+  color: #17211d;
+  font-size: 1.35rem;
+}
+
+.manager-users-page__summary span {
+  color: #0f766e;
+  font-size: 0.84rem;
+  font-weight: 760;
+}
+
+.manager-users-page__identity {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  color: #53615c;
+  font-weight: 700;
+}
+
+.manager-users-page__identity svg {
+  color: #0f766e;
+}
+
 .users-panel-header,
 .users-section > header {
   display: flex;
@@ -5740,6 +5776,10 @@
 }
 
 @media (max-width: 760px) {
+  .manager-users-page__summary {
+    justify-items: start;
+  }
+
   .users-panel-header,
   .users-section > header {
     display: grid;

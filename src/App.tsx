@@ -13,17 +13,18 @@ import { useAuth } from "./contexts/AuthContext"
 import { AdminOrganizationsPage } from "./components/AdminOrganizationsPage"
 import { useOrganization } from "./contexts/OrganizationContext"
 import { MaintenanceProvidersPage } from "./components/MaintenanceProvidersPage"
+import { OrganizationUsersPage } from "./components/OrganizationUsersPage"
 import { FeedbackPanel } from "./components/FeedbackPanel"
 import type { FeedbackAdminUnreadOrganization, FeedbackUnreadTicket } from "./types/feedback"
 
-type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores" | "soporte"
+type ActiveView = "inicio" | "unidades" | "administracion" | "proveedores" | "usuarios" | "soporte"
 type FleetViewMode = "cards" | "table"
 type FormState = { mode: "create" } | { mode: "edit"; vehicle: Vehicle } | null
 
 const navigationStorageKey = "fleetmaster.navigation.v1"
 const fleetViewStorageKey = "fleetmaster:fleet-view"
 const fleetPageSize = 12
-const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores", "soporte"])
+const validActiveViews = new Set<ActiveView>(["inicio", "unidades", "administracion", "proveedores", "usuarios", "soporte"])
 
 interface StoredNavigation {
   userId: string
@@ -34,7 +35,7 @@ interface StoredNavigation {
 }
 
 function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnreadTickets }: { onRefreshSupportUnread: () => Promise<void>; supportUnreadOrganizations: FeedbackAdminUnreadOrganization[]; supportUnreadTickets: FeedbackUnreadTicket[] }) {
-  const { isFleetmasterAdmin, organizationAccess, signOut, user } = useAuth()
+  const { isFleetmasterAdmin, organizationAccess, refreshOrganizationAccess, signOut, user } = useAuth()
   const { activeOrganization, clearActiveOrganization } = useOrganization()
   const [activeView, setActiveView] = useState<ActiveView>("unidades")
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
@@ -66,7 +67,8 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
   }
 
   const navigateTo = (view: ActiveView, clearVehicle = false) => {
-    const nextView = view === "administracion" && !isFleetmasterAdmin ? "unidades" : view
+    const canOpenUsers = !isFleetmasterAdmin && organizationAccess?.role === "manager"
+    const nextView = view === "administracion" && !isFleetmasterAdmin || view === "usuarios" && !canOpenUsers ? "unidades" : view
     setActiveView(nextView)
     storeNavigation(nextView, activeOrganization?.id ?? null, clearVehicle ? null : selectedVehicleId, clearVehicle ? false : isVehicleCenterOpen)
   }
@@ -98,19 +100,19 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
 
       if (activeOrganization?.id) {
         if (stored.organizationId === activeOrganization.id) {
-          setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin ? "unidades" : stored.activeView as ActiveView)
+          setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin || stored.activeView === "usuarios" && (!isFleetmasterAdmin || organizationAccess?.role !== "manager") ? "unidades" : stored.activeView as ActiveView)
         } else {
           window.sessionStorage.removeItem(navigationStorageKey)
           setActiveView("unidades")
         }
       } else if (stored.organizationId === null) {
-        setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin ? "unidades" : stored.activeView as ActiveView)
+        setActiveView(stored.activeView === "administracion" && !isFleetmasterAdmin || stored.activeView === "usuarios" && (!isFleetmasterAdmin || organizationAccess?.role !== "manager") ? "unidades" : stored.activeView as ActiveView)
       }
     } catch {
       window.sessionStorage.removeItem(navigationStorageKey)
       setActiveView("unidades")
     }
-  }, [activeOrganization?.id, isFleetmasterAdmin, user?.id])
+  }, [activeOrganization?.id, isFleetmasterAdmin, organizationAccess?.role, user?.id])
 
   useEffect(() => {
     let isActive = true
@@ -418,6 +420,14 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
             <Wrench aria-hidden="true" size={19} />
             Talleres y proveedores
           </button> : null}
+          {!isFleetmasterAdmin && organizationAccess?.role === "manager" ? <button
+            className={activeView === "usuarios" ? "nav-item nav-item--active" : "nav-item"}
+            onClick={() => navigateTo("usuarios", true)}
+            type="button"
+          >
+            <UserRound aria-hidden="true" size={19} />
+            Usuarios
+          </button> : null}
           {!isFleetmasterAdmin ? <button
             className={activeView === "soporte" ? "nav-item nav-item--active" : "nav-item"}
             onClick={() => navigateTo("soporte", true)}
@@ -445,6 +455,8 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} onRefreshSupportUnread={onRefreshSupportUnread} supportUnreadOrganizations={supportUnreadOrganizations} supportUnreadTicketIds={supportUnreadTickets.map((ticket) => ticket.ticketId)} />
         ) : activeView === "proveedores" ? (
           <MaintenanceProvidersPage onGoToAdministration={() => navigateTo("administracion")} />
+        ) : activeView === "usuarios" && !isFleetmasterAdmin && organizationAccess?.role === "manager" ? (
+          <OrganizationUsersPage access={organizationAccess} isSaving={isSaving} onFeedback={setFeedback} onRefreshOrganizations={refreshOrganizationAccess} onSavingChange={setIsSaving} />
         ) : activeView === "soporte" ? (
           <FeedbackPanel canManageClosure={isFleetmasterAdmin || organizationAccess?.role === "manager"} onRefreshUnread={onRefreshSupportUnread} unreadTickets={supportUnreadTickets} />
         ) : (
