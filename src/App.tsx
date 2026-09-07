@@ -440,7 +440,7 @@ function App({ onRefreshSupportUnread, supportUnreadOrganizations, supportUnread
       </aside>
 
       <main className="content-shell">
-        {activeOrganization ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
+        {activeOrganization && isFleetmasterAdmin ? <div className="active-organization-bar"><span>Administrando: <strong>{activeOrganization.name}</strong></span><button className="button button--secondary" onClick={() => { clearActiveOrganization(); setActiveView("administracion"); storeNavigation("administracion", null, null, false) }} type="button"><ArrowLeft aria-hidden="true" size={16} /> Empresas</button></div> : null}
         {activeView === "administracion" && isFleetmasterAdmin ? (
           <AdminOrganizationsPage onEnterOrganization={() => navigateTo("unidades", true)} onFeedback={setFeedback} onRefreshSupportUnread={onRefreshSupportUnread} supportUnreadOrganizations={supportUnreadOrganizations} supportUnreadTicketIds={supportUnreadTickets.map((ticket) => ticket.ticketId)} />
         ) : activeView === "proveedores" ? (

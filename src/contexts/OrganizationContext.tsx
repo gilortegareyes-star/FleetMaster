@@ -58,12 +58,12 @@ export function OrganizationProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (!isFleetmasterAdmin && organizationAccess) {
-      setActiveOrganizationState({
+    if (!isFleetmasterAdmin) {
+      setActiveOrganizationState(organizationAccess ? {
         id: organizationAccess.organizationId,
         name: organizationAccess.organizationName,
         status: "active",
-      })
+      } : null)
       return
     }
 
