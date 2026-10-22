@@ -31,6 +31,42 @@ interface ManagerRecord {
   email: string
 }
 
+type NotificationErrorCategory =
+  | "resend_not_configured"
+  | "manager_not_found"
+  | "manager_lookup_failed"
+  | "manager_user_lookup_failed"
+  | "manager_profile_lookup_failed"
+  | "manager_email_missing"
+  | "resend_network_error"
+  | "resend_http_error"
+
+const notificationLog = (correlationId: string, organizationId: string, category: NotificationErrorCategory, details: Record<string, unknown> = {}) => {
+  console.error("[organization-access-email]", { correlationId, organization_id: organizationId, category, ...details })
+}
+
+const sanitizeDiagnosticText = (value: unknown) => {
+  if (typeof value !== "string") return undefined
+  return value
+    .replace(/[\r\n]+/g, " ")
+    .replace(/Bearer\s+[^\s]+/gi, "Bearer [redacted]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
+    .slice(0, 240)
+}
+
+const sanitizeSupabaseError = (error: { code?: unknown; message?: unknown; details?: unknown; hint?: unknown }) => ({
+  error_code: sanitizeDiagnosticText(error.code),
+  error_message: sanitizeDiagnosticText(error.message),
+  error_details: sanitizeDiagnosticText(error.details),
+  error_hint: sanitizeDiagnosticText(error.hint),
+})
+
+const createIdempotencyKey = async (organizationId: string, reasonCode: string, reasonNote: string | null) => {
+  const source = `${organizationId}|blocked|${reasonCode}|${reasonNote ?? ""}`
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(source))
+  return `fleetmaster-access-block/${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`
+}
+
 const json = (body: Record<string, unknown>, status: number, origin: string | null) => {
   const headers = new Headers({
     "Content-Type": "application/json",
@@ -98,14 +134,14 @@ const escapeHtml = (value: string) =>
     '"': "&quot;",
   })[character] ?? character)
 
-const buildEmailHtml = (managerName: string, organizationName: string) => `<!doctype html>
+const buildEmailHtml = (managerName: string | null, organizationName: string) => `<!doctype html>
 <html lang="es">
   <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
   <body style="margin:0;padding:0;background:#f1f4f3;color:#1a2722;font-family:Arial,Helvetica,sans-serif;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f1f4f3;"><tr><td align="center" style="padding:28px 12px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #dce5e0;border-radius:8px;">
         <tr><td style="padding:26px 34px;background:#173b34;color:#ffffff;"><p style="margin:0;font-size:22px;line-height:1.2;font-weight:700;letter-spacing:.2px;">FleetMaster II</p><p style="margin:8px 0 0;color:#b9d8ce;font-size:12px;line-height:1.4;letter-spacing:1px;text-transform:uppercase;">Seguridad de la cuenta</p></td></tr>
-        <tr><td style="padding:38px 34px 20px;"><p style="margin:0 0 10px;color:#a33a3a;font-size:12px;line-height:1.4;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Aviso de acceso</p><h1 style="margin:0;color:#1a2722;font-size:30px;line-height:1.2;">El acceso de tu empresa ha sido bloqueado</h1><p style="margin:22px 0 0;color:#34443c;font-size:16px;line-height:1.6;">Hola, ${escapeHtml(managerName)}:</p><p style="margin:10px 0 0;color:#53635b;font-size:16px;line-height:1.6;">Te informamos que el acceso de <strong style="color:#1a2722;">${escapeHtml(organizationName)}</strong> a FleetMaster II ha sido bloqueado.</p><p style="margin:14px 0 0;color:#53635b;font-size:16px;line-height:1.6;">Mientras esta restricción permanezca activa, los usuarios de tu empresa no podrán acceder a las funciones operativas de FleetMaster II.</p></td></tr>
+        <tr><td style="padding:38px 34px 20px;"><p style="margin:0 0 10px;color:#a33a3a;font-size:12px;line-height:1.4;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Aviso de acceso</p><h1 style="margin:0;color:#1a2722;font-size:30px;line-height:1.2;">El acceso de tu empresa ha sido bloqueado</h1><p style="margin:22px 0 0;color:#34443c;font-size:16px;line-height:1.6;">${managerName ? `Hola, ${escapeHtml(managerName)}:` : "Hola:"}</p><p style="margin:10px 0 0;color:#53635b;font-size:16px;line-height:1.6;">Te informamos que el acceso de <strong style="color:#1a2722;">${escapeHtml(organizationName)}</strong> a FleetMaster II ha sido bloqueado.</p><p style="margin:14px 0 0;color:#53635b;font-size:16px;line-height:1.6;">Mientras esta restricción permanezca activa, los usuarios de tu empresa no podrán acceder a las funciones operativas de FleetMaster II.</p></td></tr>
         <tr><td style="padding:0 34px 28px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#fff5f3;border:1px solid #f0d7d2;border-left:4px solid #c65b50;"><tr><td style="padding:20px 20px;"><p style="margin:0 0 8px;color:#6d302b;font-size:17px;line-height:1.3;font-weight:700;">¿Qué significa esto?</p><p style="margin:0;color:#6c5753;font-size:14px;line-height:1.6;">Las cuentas y usuarios de tu organización continúan registrados en FleetMaster II. Sin embargo, las funciones operativas permanecerán restringidas mientras el acceso de la empresa se encuentre bloqueado.</p></td></tr></table></td></tr>
         <tr><td style="padding:0 34px 28px;"><p style="margin:0 0 8px;color:#1a2722;font-size:17px;line-height:1.3;font-weight:700;">¿Necesitas ayuda?</p><p style="margin:0;color:#53635b;font-size:14px;line-height:1.6;">Si consideras que esto es un error o necesitas más información, comunícate con el equipo de FleetMaster II.</p></td></tr>
         <tr><td style="padding:24px 34px 30px;background:#f7faf8;border-top:1px solid #e1e9e5;"><p style="margin:0;color:#1a2722;font-size:16px;line-height:1.4;font-weight:700;">Gracias por ser parte de FleetMaster II.</p><p style="margin:8px 0 0;color:#0f766e;font-size:12px;line-height:1.5;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Tu flota, siempre contigo.</p><p style="margin:22px 0 0;color:#7b8983;font-size:12px;line-height:1.5;">FleetMaster II · Este es un mensaje automático.</p></td></tr>
@@ -114,38 +150,97 @@ const buildEmailHtml = (managerName: string, organizationName: string) => `<!doc
   </body>
 </html>`
 
-const sendBlockedAccessEmail = async (email: string, managerName: string, organizationName: string) => {
+const sendBlockedAccessEmail = async (email: string, managerName: string | null, organizationName: string, organizationId: string, reasonCode: string, reasonNote: string | null, correlationId: string) => {
   const apiKey = Deno.env.get("RESEND_API_KEY")
-  if (!apiKey) throw new Error("resend-not-configured")
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: RESEND_FROM,
-      to: [email],
-      subject: `El acceso de ${organizationName} ha sido bloqueado | FleetMaster II`,
-      html: buildEmailHtml(managerName, organizationName),
-    }),
-  })
-  if (!response.ok) throw new Error("resend-delivery-failed")
+  if (!apiKey) {
+    notificationLog(correlationId, organizationId, "resend_not_configured")
+    throw new Error("resend-not-configured")
+  }
+
+  const idempotencyKey = await createIdempotencyKey(organizationId, reasonCode, reasonNote)
+  let response: Response
+  try {
+    response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: JSON.stringify({
+        from: RESEND_FROM,
+        to: [email],
+        subject: `El acceso de ${organizationName} ha sido bloqueado | FleetMaster II`,
+        html: buildEmailHtml(managerName, organizationName),
+      }),
+    })
+  } catch (error) {
+    notificationLog(correlationId, organizationId, "resend_network_error", {
+      message: sanitizeDiagnosticText(error instanceof Error ? error.message : "request-failed"),
+    })
+    throw new Error("resend-network-error")
+  }
+
+  if (!response.ok) {
+    let providerError: { name?: unknown; message?: unknown; code?: unknown } = {}
+    try {
+      const body = await response.json() as Record<string, unknown>
+      providerError = {
+        name: body.name,
+        message: body.message,
+        code: body.code,
+      }
+    } catch {
+      providerError = {}
+    }
+    notificationLog(correlationId, organizationId, "resend_http_error", {
+      status: response.status,
+      code: sanitizeDiagnosticText(providerError.code),
+      provider: sanitizeDiagnosticText(providerError.name),
+      message: sanitizeDiagnosticText(providerError.message),
+    })
+    throw new Error("resend-delivery-failed")
+  }
 }
 
-const resolveActiveManager = async (admin: SupabaseClient, organizationId: string): Promise<ManagerRecord | null> => {
+const resolveActiveManager = async (admin: SupabaseClient, organizationId: string, correlationId: string): Promise<ManagerRecord | null> => {
   const { data, error } = await admin
     .from("organization_memberships")
-    .select("user_id,profiles(display_name)")
+    .select("user_id")
     .eq("organization_id", organizationId)
     .eq("role", "manager")
     .eq("status", "active")
     .maybeSingle()
-  if (error) throw new Error("manager-lookup-failed")
-  if (!data) return null
+  if (error) {
+    notificationLog(correlationId, organizationId, "manager_lookup_failed", sanitizeSupabaseError(error))
+    throw new Error("manager-lookup-failed")
+  }
+  if (!data) {
+    notificationLog(correlationId, organizationId, "manager_not_found")
+    return null
+  }
 
-  const row = data as unknown as { user_id: string; profiles: { display_name: string | null } | Array<{ display_name: string | null }> | null }
-  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+  const row = data as unknown as { user_id: string }
+  const { data: profile, error: profileError } = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", row.user_id)
+    .maybeSingle()
+  if (profileError) {
+    notificationLog(correlationId, organizationId, "manager_profile_lookup_failed", sanitizeSupabaseError(profileError))
+  }
+
   const { data: authUser, error: authError } = await admin.auth.admin.getUserById(row.user_id)
-  if (authError || !authUser.user?.email) throw new Error("manager-lookup-failed")
-  return { user_id: row.user_id, display_name: profile?.display_name ?? null, email: authUser.user.email }
+  if (authError) {
+    notificationLog(correlationId, organizationId, "manager_user_lookup_failed")
+    throw new Error("manager-user-lookup-failed")
+  }
+  if (!authUser.user?.email) {
+    notificationLog(correlationId, organizationId, "manager_email_missing")
+    throw new Error("manager-email-missing")
+  }
+  const displayName = typeof profile?.display_name === "string" && profile.display_name.trim() ? profile.display_name.trim() : null
+  return { user_id: row.user_id, display_name: displayName, email: authUser.user.email }
 }
 
 Deno.serve(async (request) => {
@@ -158,6 +253,7 @@ Deno.serve(async (request) => {
   const input = await parseRequest(request)
   if (!token || !input) return json({ success: false, code: "invalid_request" }, 400, origin)
 
+  const correlationId = crypto.randomUUID()
   try {
     const { caller, admin } = createClients(token)
     const { data: userData, error: userError } = await caller.auth.getUser()
@@ -182,9 +278,9 @@ Deno.serve(async (request) => {
     }
 
     try {
-      const manager = await resolveActiveManager(admin, input.organization_id)
+      const manager = await resolveActiveManager(admin, input.organization_id, correlationId)
       if (!manager) return json({ success: true, accessChanged: true, transitioned: true, emailSent: false, notificationStatus: "no_recipient" }, 200, origin)
-      await sendBlockedAccessEmail(manager.email, manager.display_name || manager.email, transition.organization_name)
+      await sendBlockedAccessEmail(manager.email, manager.display_name, transition.organization_name, input.organization_id, input.reason_code, input.reason_note, correlationId)
       return json({ success: true, accessChanged: true, transitioned: true, emailSent: true, notificationStatus: "sent" }, 200, origin)
     } catch {
       return json({ success: true, accessChanged: true, transitioned: true, emailSent: false, notificationStatus: "failed" }, 200, origin)
