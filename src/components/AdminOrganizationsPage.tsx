@@ -93,10 +93,14 @@ export function AdminOrganizationsPage({ onFeedback, onEnterOrganization, onRefr
     setIsSaving(true)
     setAccessError(null)
     try {
-      await setOrganizationOperationalAccess({ organizationId: selectedOrganization.id, enabled, reasonCode: accessReasonCode, reasonNote: accessReasonNote.trim() || null })
+      const result = await setOrganizationOperationalAccess({ organizationId: selectedOrganization.id, enabled, reasonCode: accessReasonCode, reasonNote: accessReasonNote.trim() || null })
       setIsAccessFormOpen(false)
       await loadOrganizations()
-      onFeedback(enabled ? "Acceso operativo liberado." : "Acceso operativo bloqueado.")
+      if (enabled) onFeedback(result.transitioned ? "Acceso operativo liberado." : "El acceso operativo ya estaba liberado.")
+      else if (result.notificationStatus === "sent") onFeedback("Acceso bloqueado y correo de notificación enviado al Manager.")
+      else if (result.notificationStatus === "no_recipient") onFeedback("El acceso fue bloqueado correctamente. La empresa no tiene un Manager activo para recibir la notificación.")
+      else if (result.notificationStatus === "failed") onFeedback("El acceso fue bloqueado correctamente, pero no fue posible enviar el correo de notificación.")
+      else onFeedback(result.transitioned ? "Acceso operativo bloqueado." : "El acceso operativo ya estaba bloqueado.")
     } catch (error) {
       setAccessError(error instanceof Error ? error.message : "No se pudo actualizar el acceso operativo.")
     } finally {

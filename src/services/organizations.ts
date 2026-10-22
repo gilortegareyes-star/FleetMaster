@@ -95,14 +95,24 @@ export const setOrganizationOperationalAccess = async (input: {
   reasonCode: OperationalAccessReasonCode
   reasonNote?: string | null
 }) => {
-  const { data, error } = await getSupabaseClient().rpc("set_organization_operational_access", {
-    p_organization_id: input.organizationId,
-    p_enabled: input.enabled,
-    p_reason_code: input.reasonCode,
-    p_reason_note: input.reasonNote ?? null,
+  const { data, error } = await getSupabaseClient().functions.invoke("set-organization-operational-access", {
+    body: {
+      organization_id: input.organizationId,
+      enabled: input.enabled,
+      reason_code: input.reasonCode,
+      reason_note: input.reasonNote ?? null,
+    },
   })
-  if (error) throwOrganizationError(error)
-  return data
+  if (!error && data?.success === true && typeof data.transitioned === "boolean") {
+    return {
+      success: true as const,
+      accessChanged: data.accessChanged === true,
+      transitioned: data.transitioned === true,
+      emailSent: data.emailSent === true,
+      notificationStatus: data.notificationStatus as "sent" | "failed" | "no_recipient" | "not_required",
+    }
+  }
+  throw new Error("No se pudo actualizar el acceso operativo.")
 }
 
 interface OrganizationInvitationRow {
